@@ -186,56 +186,20 @@
             border-radius: 10px; 
             cursor: pointer; 
         }
-        .nft-viewer { 
+        .mint-details { 
             margin-top: 30px; 
             width: 100%; 
             max-width: 800px; 
+            text-align: center; 
         }
-        .nft-viewer h2 { 
+        .mint-details h2 { 
             font-size: 32px; 
             color: #ff8c00; 
-            text-align: center; 
         }
-        #nftList { 
-            display: grid; 
-            grid-template-columns: repeat(2, 1fr); 
-            gap: 20px; 
-            justify-content: center; 
-        }
-        .nft-card { 
-            text-align: center; 
-            background: #333; 
-            padding: 10px; 
-            border-radius: 10px; 
-            box-shadow: 0 4px 10px rgba(255, 140, 0, 0.2); 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-        }
-        .nft-card img { 
-            width: 100%; 
-            max-width: 150px; 
-            height: auto; 
-            border-radius: 5px; 
-        }
-        .nft-card p { 
+        #mintInfo { 
             font-size: 14px; 
-            margin: 5px 0; 
-        }
-        .nft-card input { 
-            width: 100%; 
-            padding: 5px; 
-            margin-bottom: 5px; 
-            border-radius: 5px; 
-            border: 1px solid #ff8c00; 
-            background: #1a1a1a; 
             color: #fff; 
-            font-size: 12px; 
-        }
-        .nft-card .action-btn { 
-            padding: 6px 12px; 
-            font-size: 12px; 
-            width: 100%; 
+            word-wrap: break-word; 
         }
         @media (max-width: 768px) {
             h1 { font-size: 32px; }
@@ -247,13 +211,8 @@
             .action-btn { padding: 8px 16px; font-size: 14px; }
             .wallet-info { font-size: 14px; }
             .modal-content { max-width: 90%; padding: 15px; }
-            .nft-viewer h2 { font-size: 24px; }
-            #nftList { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-            .nft-card { padding: 8px; }
-            .nft-card img { max-width: 120px; }
-            .nft-card p { font-size: 12px; }
-            .nft-card input { padding: 4px; font-size: 10px; }
-            .nft-card .action-btn { padding: 5px 10px; font-size: 10px; }
+            .mint-details h2 { font-size: 24px; }
+            #mintInfo { font-size: 12px; }
             .private-key-input, .gas-input { max-width: 300px; }
             .gas-group { max-width: 150px; }
         }
@@ -265,7 +224,7 @@
         <div class="wallet-info">
             Wallet: <span id="walletAddress">Not connected</span>
         </div>
-        <input type="text" id="privateKey" class="private-key-input" placeholder="Enter your private key">
+        <input type="text" id="privateKey" class="private-key-input" placeholder="Enter your private key (with 0x)">
         <div class="gas-controls">
             <div class="gas-group">
                 <span class="gas-label">Max Base Fee (Gwei)</span>
@@ -280,7 +239,6 @@
                 <input type="number" id="gasLimit" class="gas-input" value="20000000" min="100000">
             </div>
         </div>
-        <button id="connectWalletBtn" class="action-btn">Connect Wallet</button>
     </div>
     <div class="controls">
         <div class="control-group">
@@ -514,9 +472,9 @@
             <button onclick="closeModal()">OK</button>
         </div>
     </div>
-    <div class="nft-viewer">
-        <h2>Your Shiba Inu Yacht Club NFTs</h2>
-        <div id="nftList"></div>
+    <div class="mint-details">
+        <h2>Minting Details</h2>
+        <div id="mintInfo">No minting activity yet.</div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
@@ -545,17 +503,12 @@
         const canvas = document.getElementById("nftCanvas");
         const ctx = canvas.getContext("2d");
 
-        let web3, account, contract;
         const CONTRACT_ADDRESS = "0x2db53e56Cb121bc622F42154c434a2b28A79af66";
-
         const CONTRACT_ABI = [
             {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
             {"inputs":[{"internalType":"string","name":"uri","type":"string"},{"internalType":"string[]","name":"attributes","type":"string[]"}],"name":"mintNFT","outputs":[],"stateMutability":"nonpayable","type":"function"},
             {"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"}
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}
         ];
 
         const shibariumMainnet = {
@@ -575,39 +528,11 @@
             document.getElementById("modal").style.display = "none";
         }
 
-        async function connectWallet() {
-            const privateKey = document.getElementById("privateKey").value.trim();
-            const connectButton = document.getElementById("connectWalletBtn");
-            connectButton.classList.add("loading");
-
-            if (!privateKey) {
-                showModal("Please enter your wallet private key!");
-                connectButton.classList.remove("loading");
-                return;
-            }
-
-            try {
-                web3 = new Web3("https://www.shibrpc.com");
-                account = web3.eth.accounts.privateKeyToAccount(privateKey);
-                web3.eth.accounts.wallet.add(account);
-                web3.eth.defaultAccount = account.address;
-
-                contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-                showModal("Connected to Shibarium successfully!");
-                updateWalletAddress();
-                fetchOwnedNFTs();
-            } catch (error) {
-                showModal("Failed to connect: " + error.message);
-            } finally {
-                connectButton.classList.remove("loading");
-            }
-        }
-
-        async function updateWalletAddress() {
-            if (!account) {
+        function updateWalletAddress(address) {
+            if (!address) {
                 document.getElementById("walletAddress").innerText = "Not connected";
             } else {
-                const shortAddress = `${account.address.slice(0, 6)}...${account.address.slice(-4)}`;
+                const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
                 document.getElementById("walletAddress").innerText = shortAddress;
             }
         }
@@ -680,19 +605,32 @@
         }
 
         async function mintNFT() {
-            if (!web3 || !contract || !account) {
-                showModal("Please connect your wallet with a private key first!");
+            const privateKey = document.getElementById("privateKey").value.trim();
+            const mintButton = document.getElementById("mintBtn");
+            const mintInfo = document.getElementById("mintInfo");
+
+            if (!privateKey) {
+                showModal("Please enter your private key (with 0x)!");
                 return;
             }
 
-            const mintButton = document.getElementById("mintBtn");
-            mintButton.classList.add("loading");
+            if (!privateKey.startsWith("0x")) {
+                showModal("Private key must start with '0x'!");
+                return;
+            }
 
-            const maxBaseFee = document.getElementById("maxBaseFee").value;
-            const priorityFee = document.getElementById("priorityFee").value;
-            const gasLimit = document.getElementById("gasLimit").value;
+            mintButton.classList.add("loading");
+            mintInfo.innerHTML = "Initializing minting process...";
 
             try {
+                const web3 = new Web3("https://www.shibrpc.com");
+                const account = web3.eth.accounts.privateKeyToAccount(privateKey);
+                web3.eth.accounts.wallet.add(account);
+                web3.eth.defaultAccount = account.address;
+
+                const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+                updateWalletAddress(account.address);
+
                 const imageData = canvas.toDataURL("image/png").split(",")[1];
                 const attributes = layerOrder.map(layer => layers[layer][currentIndices[layer]]);
                 const totalSupply = await contract.methods.totalSupply().call();
@@ -704,83 +642,37 @@
                 };
                 const tokenURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
 
-                showModal("Minting NFT...");
-                await contract.methods.mintNFT(tokenURI, attributes).send({
+                const maxBaseFee = document.getElementById("maxBaseFee").value;
+                const priorityFee = document.getElementById("priorityFee").value;
+                const gasLimit = document.getElementById("gasLimit").value;
+
+                mintInfo.innerHTML = "Sending transaction to Shibarium...";
+                const tx = await contract.methods.mintNFT(tokenURI, attributes).send({
                     from: account.address,
                     gas: gasLimit,
                     maxFeePerGas: web3.utils.toWei(maxBaseFee, "gwei"),
                     maxPriorityFeePerGas: web3.utils.toWei(priorityFee, "gwei")
                 });
-                showModal("NFT minted successfully!");
-                fetchOwnedNFTs();
+
+                mintInfo.innerHTML = `
+                    Minting successful!<br>
+                    Transaction Hash: <a href="https://www.shibariumscan.io/tx/${tx.transactionHash}" target="_blank">${tx.transactionHash}</a><br>
+                    Token ID: ${totalSupply}<br>
+                    Gas Used: ${tx.gasUsed}
+                `;
+                showModal("NFT minted successfully! Check Minting Details below.");
             } catch (error) {
+                mintInfo.innerHTML = `Minting failed: ${error.message}`;
                 showModal("Minting failed: " + error.message);
             } finally {
                 mintButton.classList.remove("loading");
             }
         }
 
-        async function fetchOwnedNFTs() {
-            if (!web3 || !contract || !account) {
-                showModal("Please connect your wallet first!");
-                return;
-            }
-            const nftList = document.getElementById("nftList");
-            nftList.innerHTML = "<p>Loading your NFTs...</p>";
-            const balance = await contract.methods.balanceOf(account.address).call();
-            if (balance == 0) {
-                nftList.innerHTML = "<p>You don’t own any Shiba Inu Yacht Club NFTs yet.</p>";
-                return;
-            }
-            nftList.innerHTML = "";
-            const totalSupply = await contract.methods.totalSupply().call();
-            for (let i = 0; i < totalSupply; i++) {
-                const owner = await contract.methods.ownerOf(i).call();
-                if (owner.toLowerCase() === account.address.toLowerCase()) {
-                    const tokenURI = await contract.methods.tokenURI(i).call();
-                    await displayNFT(i, tokenURI);
-                }
-            }
-        }
-
-        async function displayNFT(tokenId, tokenURI) {
-            const nftList = document.getElementById("nftList");
-            let metadata = tokenURI.startsWith("data:application/json;base64,")
-                ? JSON.parse(atob(tokenURI.split(",")[1]))
-                : { name: `Token #${tokenId}`, image: "Unknown" };
-            const nftDiv = document.createElement("div");
-            nftDiv.className = "nft-card";
-            nftDiv.innerHTML = `
-                <img src="${metadata.image}" alt="${metadata.name}">
-                <p>${metadata.name} (ID: ${tokenId})</p>
-                <input type="text" id="transferAddress${tokenId}" placeholder="Recipient Address">
-                <button class="action-btn" onclick="transferNFT(${tokenId})">Transfer</button>
-            `;
-            nftList.appendChild(nftDiv);
-        }
-
-        async function transferNFT(tokenId) {
-            if (!web3 || !contract || !account) {
-                showModal("Please connect your wallet first!");
-                return;
-            }
-            const transferAddress = document.getElementById(`transferAddress${tokenId}`).value;
-            if (!web3.utils.isAddress(transferAddress)) {
-                showModal("Invalid Ethereum address!");
-                return;
-            }
-            showModal("Transferring NFT...");
-            await contract.methods.safeTransferFrom(account.address, transferAddress, tokenId).send({ from: account.address });
-            showModal("NFT transferred successfully!");
-            fetchOwnedNFTs();
-        }
-
         window.onload = () => {
             for (const layer of layerOrder) updateLayerValue(layer);
             updateNFT();
         };
-
-        document.getElementById("connectWalletBtn").addEventListener("click", connectWallet);
     </script>
 </body>
 </html>
