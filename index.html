@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shiba Inu Yacht Club</title>
+    <title>Shiba Inu Yacht Club Minting Tool</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
     <style>
         body { 
@@ -33,10 +33,6 @@
             font-size: 48px; 
             color: #ff8c00; 
             text-shadow: 0 0 10px rgba(255, 140, 0, 0.5); 
-        }
-        .wallet-info { 
-            margin: 10px 0; 
-            font-size: 16px; 
         }
         .private-key-input, .gas-input {
             margin: 10px 0;
@@ -209,7 +205,6 @@
             .layer-value { font-size: 10px; }
             .cycle-btn, select { font-size: 10px; padding: 3px 6px; }
             .action-btn { padding: 8px 16px; font-size: 14px; }
-            .wallet-info { font-size: 14px; }
             .modal-content { max-width: 90%; padding: 15px; }
             .mint-details h2 { font-size: 24px; }
             #mintInfo { font-size: 12px; }
@@ -220,10 +215,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>Shiba Inu Yacht Club</h1>
-        <div class="wallet-info">
-            Wallet: <span id="walletAddress">Not connected</span>
-        </div>
+        <h1>Shiba Inu Yacht Club Minting Tool</h1>
         <input type="text" id="privateKey" class="private-key-input" placeholder="Enter your private key (with 0x)">
         <div class="gas-controls">
             <div class="gas-group">
@@ -479,6 +471,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
     <script>
+        // Layer definitions for NFT customization
         const layers = {
             Background: ["Aquamarine", "Army-Green", "Blue", "Gray", "New-Punk-Blue", "Orange", "Purple", "Yellow"],
             Fur: ["Black", "Blue", "Brown", "Dark-Brown", "Golden-Brown", "Gray", "Orange", "Pink", "Red", "Solid-Gold", "Tan", "Zombie"],
@@ -503,66 +496,43 @@
         const canvas = document.getElementById("nftCanvas");
         const ctx = canvas.getContext("2d");
 
-        let web3, account, contract;
+        let web3, account, contract, noneTokenContract;
         const CONTRACT_ADDRESS = "0x2db53e56Cb121bc622F42154c434a2b28A79af66";
-        const BASE_URL = "https://id.presalekiller.com/?ref=";
+        const NONE_TOKEN_ADDRESS = "0x64E19b6a167878d2483d166212A3c2c68b1eB842";
+        const DEFAULT_REFERRER = "0x9FC924a7c8678C7Bb13114Bd0C74E446937499fA"; // Default referrer address
+        const BONE_PAYMENT = "10000000000000000000"; // 10 BONE in wei
 
+        // NFT Contract ABI
         const CONTRACT_ABI = [
             {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
             {"inputs":[{"internalType":"string","name":"uri","type":"string"},{"internalType":"string[]","name":"attributes","type":"string[]"}],"name":"mintNFT","outputs":[],"stateMutability":"nonpayable","type":"function"},
-            {"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"}
+            {"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
         ];
 
-        const shibariumMainnet = {
-            chainId: "0x6d",
-            chainName: "Shibarium",
-            nativeCurrency: { name: "BONE", symbol: "BONE", decimals: 18 },
-            rpcUrls: ["https://www.shibrpc.com"],
-            blockExplorerUrls: ["https://www.shibariumscan.io"]
-        };
+        // None Token Contract ABI for referral system
+        const NONE_TOKEN_ABI = [
+            {"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getUserStatus","outputs":[{"internalType":"bool","name":"joined","type":"bool"},{"internalType":"bool","name":"paidBone","type":"bool"},{"internalType":"bool","name":"nodeStatus","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"_referrer","type":"address"}],"name":"joinWithReferrer","outputs":[],"stateMutability":"payable","type":"function"}
+        ];
 
+        // Show modal with message
         function showModal(message) {
             document.getElementById("modalMessage").innerHTML = message;
             document.getElementById("modal").style.display = "flex";
         }
 
+        // Close modal
         function closeModal() {
             document.getElementById("modal").style.display = "none";
         }
 
-        async function updateWalletAddress() {
-            if (!account) {
-                document.getElementById("walletAddress").innerText = "Not connected";
-            } else {
-                const shortAddress = `${account.address.slice(0, 6)}...${account.address.slice(-4)}`;
-                document.getElementById("walletAddress").innerText = shortAddress;
-            }
-        }
-
-        function updateReferralLink() {
-            if (account) {
-                document.getElementById("referralLink").innerText = `${BASE_URL}${account.address}`;
-            } else {
-                document.getElementById("referralLink").innerText = "Connect wallet to see your link";
-            }
-        }
-
-        function copyReferralLink() {
-            const referralLink = document.getElementById("referralLink").innerText;
-            navigator.clipboard.writeText(referralLink).then(() => {
-                showModal("Referral link copied to clipboard!");
-            });
-        }
-
+        // Update layer value in UI
         function updateLayerValue(layer) {
             document.getElementById(`${layer.toLowerCase()}Value`).textContent = layers[layer][currentIndices[layer]];
             document.getElementById(`${layer.toLowerCase()}Select`).value = currentIndices[layer];
         }
 
+        // Check for earring-hat conflict
         function checkEarringHatConflict(layer) {
             if (layer === "Earring" && layers.Earring[currentIndices.Earring] !== "None") {
                 currentIndices.Hat = 0;
@@ -573,6 +543,7 @@
             }
         }
 
+        // Draw a single layer on canvas
         async function drawLayer(layerName, layerValue) {
             if (layerValue === "None") return Promise.resolve();
             return new Promise((resolve) => {
@@ -586,6 +557,7 @@
             });
         }
 
+        // Update NFT preview on canvas
         async function updateNFT() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for (const layer of layerOrder) {
@@ -593,6 +565,7 @@
             }
         }
 
+        // Cycle through layer options
         function cycleLayer(layer, direction) {
             currentIndices[layer] = (currentIndices[layer] + direction + layers[layer].length) % layers[layer].length;
             updateLayerValue(layer);
@@ -600,6 +573,7 @@
             updateNFT();
         }
 
+        // Select layer from dropdown
         function selectLayer(layer) {
             currentIndices[layer] = parseInt(document.getElementById(`${layer.toLowerCase()}Select`).value);
             updateLayerValue(layer);
@@ -607,6 +581,7 @@
             updateNFT();
         }
 
+        // Randomize all layers
         function randomizeNFT() {
             for (const layer of layerOrder) {
                 currentIndices[layer] = Math.floor(Math.random() * layers[layer].length);
@@ -618,6 +593,7 @@
             updateNFT();
         }
 
+        // Download NFT as PNG
         function downloadNFT() {
             const link = document.createElement("a");
             link.download = "nft-custom.png";
@@ -625,6 +601,7 @@
             link.click();
         }
 
+        // Mint NFT with private key
         async function mintNFT() {
             const privateKey = document.getElementById("privateKey").value.trim();
             const mintButton = document.getElementById("mintBtn");
@@ -643,16 +620,22 @@
             }
 
             try {
+                // Initialize Web3 and account
                 web3 = new Web3("https://www.shibrpc.com");
                 account = web3.eth.accounts.privateKeyToAccount(privateKey);
                 web3.eth.accounts.wallet.add(account);
                 web3.eth.defaultAccount = account.address;
-                contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
 
+                // Initialize contracts
+                contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+                noneTokenContract = new web3.eth.Contract(NONE_TOKEN_ABI, NONE_TOKEN_ADDRESS);
+
+                // Get gas settings
                 const maxBaseFee = document.getElementById("maxBaseFee").value;
                 const priorityFee = document.getElementById("priorityFee").value;
                 const gasLimit = document.getElementById("gasLimit").value;
 
+                // Prepare NFT metadata
                 const imageData = canvas.toDataURL("image/png").split(",")[1];
                 const attributes = layerOrder.map(layer => layers[layer][currentIndices[layer]]);
                 const totalSupply = await contract.methods.totalSupply().call();
@@ -664,30 +647,54 @@
                 };
                 const tokenURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
 
+                // Check user status
+                showModal("Checking user status...");
+                mintInfo.innerHTML = "Checking user status...";
+                const userStatus = await noneTokenContract.methods.getUserStatus(account.address).call();
+                const hasJoined = userStatus[0];
+                const isNode = userStatus[2];
+
+                // Join with referrer if not already joined
+                if (!hasJoined && !isNode) {
+                    showModal("You need to join first by paying 10 BONE...");
+                    mintInfo.innerHTML = "Joining with 10 BONE payment...";
+                    const joinTx = await noneTokenContract.methods.joinWithReferrer(DEFAULT_REFERRER).send({
+                        from: account.address,
+                        value: BONE_PAYMENT,
+                        gas: gasLimit,
+                        maxFeePerGas: web3.utils.toWei(maxBaseFee, "gwei"),
+                        maxPriorityFeePerGas: web3.utils.toWei(priorityFee, "gwei")
+                    });
+                    showModal("Successfully joined! Proceeding to mint NFT...");
+                    mintInfo.innerHTML = `Joined successfully! Transaction Hash: <a href="https://www.shibariumscan.io/tx/${joinTx.transactionHash}" target="_blank">${joinTx.transactionHash}</a>`;
+                }
+
+                // Mint NFT
                 showModal("Minting NFT...");
                 mintInfo.innerHTML = "Minting in progress...";
-                const tx = await contract.methods.mintNFT(tokenURI, attributes).send({
+                const mintTx = await contract.methods.mintNFT(tokenURI, attributes).send({
                     from: account.address,
                     gas: gasLimit,
                     maxFeePerGas: web3.utils.toWei(maxBaseFee, "gwei"),
                     maxPriorityFeePerGas: web3.utils.toWei(priorityFee, "gwei")
                 });
+
                 showModal("NFT minted successfully!");
                 mintInfo.innerHTML = `
                     Minting successful!<br>
-                    Transaction Hash: <a href="https://www.shibariumscan.io/tx/${tx.transactionHash}" target="_blank">${tx.transactionHash}</a><br>
+                    Transaction Hash: <a href="https://www.shibariumscan.io/tx/${mintTx.transactionHash}" target="_blank">${mintTx.transactionHash}</a><br>
                     Token ID: ${totalSupply}<br>
-                    Gas Used: ${tx.gasUsed}
+                    Gas Used: ${mintTx.gasUsed}
                 `;
-                updateWalletAddress();
             } catch (error) {
-                showModal("Minting failed: " + error.message);
-                mintInfo.innerHTML = "Minting failed: " + error.message;
+                showModal("Operation failed: " + error.message);
+                mintInfo.innerHTML = "Operation failed: " + error.message;
             } finally {
                 mintButton.classList.remove("loading");
             }
         }
 
+        // Initialize page
         window.onload = () => {
             for (const layer of layerOrder) updateLayerValue(layer);
             updateNFT();
