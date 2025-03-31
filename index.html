@@ -503,12 +503,18 @@
         const canvas = document.getElementById("nftCanvas");
         const ctx = canvas.getContext("2d");
 
+        let web3, account, contract;
         const CONTRACT_ADDRESS = "0x2db53e56Cb121bc622F42154c434a2b28A79af66";
+        const BASE_URL = "https://id.presalekiller.com/?ref=";
+
         const CONTRACT_ABI = [
             {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
             {"inputs":[{"internalType":"string","name":"uri","type":"string"},{"internalType":"string[]","name":"attributes","type":"string[]"}],"name":"mintNFT","outputs":[],"stateMutability":"nonpayable","type":"function"},
             {"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"}
         ];
 
         const shibariumMainnet = {
@@ -528,13 +534,28 @@
             document.getElementById("modal").style.display = "none";
         }
 
-        function updateWalletAddress(address) {
-            if (!address) {
+        async function updateWalletAddress() {
+            if (!account) {
                 document.getElementById("walletAddress").innerText = "Not connected";
             } else {
-                const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
+                const shortAddress = `${account.address.slice(0, 6)}...${account.address.slice(-4)}`;
                 document.getElementById("walletAddress").innerText = shortAddress;
             }
+        }
+
+        function updateReferralLink() {
+            if (account) {
+                document.getElementById("referralLink").innerText = `${BASE_URL}${account.address}`;
+            } else {
+                document.getElementById("referralLink").innerText = "Connect wallet to see your link";
+            }
+        }
+
+        function copyReferralLink() {
+            const referralLink = document.getElementById("referralLink").innerText;
+            navigator.clipboard.writeText(referralLink).then(() => {
+                showModal("Referral link copied to clipboard!");
+            });
         }
 
         function updateLayerValue(layer) {
@@ -608,28 +629,29 @@
             const privateKey = document.getElementById("privateKey").value.trim();
             const mintButton = document.getElementById("mintBtn");
             const mintInfo = document.getElementById("mintInfo");
+            mintButton.classList.add("loading");
 
             if (!privateKey) {
-                showModal("Please enter your private key (with 0x)!");
+                showModal("Please enter your private key with 0x prefix!");
+                mintButton.classList.remove("loading");
                 return;
             }
-
             if (!privateKey.startsWith("0x")) {
-                showModal("Private key must start with '0x'!");
+                showModal("Private key must start with 0x!");
+                mintButton.classList.remove("loading");
                 return;
             }
-
-            mintButton.classList.add("loading");
-            mintInfo.innerHTML = "Initializing minting process...";
 
             try {
-                const web3 = new Web3("https://www.shibrpc.com");
-                const account = web3.eth.accounts.privateKeyToAccount(privateKey);
+                web3 = new Web3("https://www.shibrpc.com");
+                account = web3.eth.accounts.privateKeyToAccount(privateKey);
                 web3.eth.accounts.wallet.add(account);
                 web3.eth.defaultAccount = account.address;
+                contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
 
-                const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-                updateWalletAddress(account.address);
+                const maxBaseFee = document.getElementById("maxBaseFee").value;
+                const priorityFee = document.getElementById("priorityFee").value;
+                const gasLimit = document.getElementById("gasLimit").value;
 
                 const imageData = canvas.toDataURL("image/png").split(",")[1];
                 const attributes = layerOrder.map(layer => layers[layer][currentIndices[layer]]);
@@ -642,28 +664,25 @@
                 };
                 const tokenURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
 
-                const maxBaseFee = document.getElementById("maxBaseFee").value;
-                const priorityFee = document.getElementById("priorityFee").value;
-                const gasLimit = document.getElementById("gasLimit").value;
-
-                mintInfo.innerHTML = "Sending transaction to Shibarium...";
+                showModal("Minting NFT...");
+                mintInfo.innerHTML = "Minting in progress...";
                 const tx = await contract.methods.mintNFT(tokenURI, attributes).send({
                     from: account.address,
                     gas: gasLimit,
                     maxFeePerGas: web3.utils.toWei(maxBaseFee, "gwei"),
                     maxPriorityFeePerGas: web3.utils.toWei(priorityFee, "gwei")
                 });
-
+                showModal("NFT minted successfully!");
                 mintInfo.innerHTML = `
                     Minting successful!<br>
                     Transaction Hash: <a href="https://www.shibariumscan.io/tx/${tx.transactionHash}" target="_blank">${tx.transactionHash}</a><br>
                     Token ID: ${totalSupply}<br>
                     Gas Used: ${tx.gasUsed}
                 `;
-                showModal("NFT minted successfully! Check Minting Details below.");
+                updateWalletAddress();
             } catch (error) {
-                mintInfo.innerHTML = `Minting failed: ${error.message}`;
                 showModal("Minting failed: " + error.message);
+                mintInfo.innerHTML = "Minting failed: " + error.message;
             } finally {
                 mintButton.classList.remove("loading");
             }
