@@ -143,26 +143,15 @@
             color: #FF8C00;
             margin-bottom: 12px;
         }
-        .token-list {
-            max-height: 150px;
-            overflow-y: auto;
-            margin-bottom: 12px;
-            padding-right: 8px;
-        }
-        .token-item {
-            display: flex;
-            align-items: center;
-            padding: 8px;
+        .action-box input {
+            width: 100%;
+            padding: 10px;
             background: #1E1E1E;
+            border: 1px solid #333;
             border-radius: 8px;
-            margin-bottom: 8px;
-        }
-        .token-item input[type="checkbox"] {
-            margin-right: 8px;
-        }
-        .token-item span {
-            font-size: 0.9rem;
             color: #E0E0E0;
+            font-size: 0.9rem;
+            outline: none;
         }
         .action-box .action-button {
             padding: 10px;
@@ -176,6 +165,7 @@
             font-size: 0.9rem;
             position: relative;
             transition: background 0.3s;
+            margin-top: 12px;
         }
         .action-box .action-button:disabled {
             background: #555;
@@ -334,7 +324,9 @@
             {"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
             {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},
             {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"walletOfOwner","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"}
         ];
 
         function shortenAddress(address) {
@@ -420,16 +412,9 @@
                 const contract = new web3.eth.Contract(contractAbi, contractAddress);
                 const oldSIYCContract = new web3.eth.Contract(oldSIYCAbi, oldSIYCAddress);
                 let tokenIds = [];
-                let totalSupply = 0;
                 if (account) {
                     tokenIds = await oldSIYCContract.methods.walletOfOwner(account).call();
-                    totalSupply = await oldSIYCContract.methods.totalSupply().call();
                 }
-                let tokenListHtml = tokenIds.length ? tokenIds.map(id => `
-                    <div class="token-item">
-                        <input type="checkbox" value="${id}" class="token-checkbox">
-                        <span>SIYC NFT #${id}</span>
-                    </div>`).join("") : "<p>No SIYC NFTs found in wallet.</p>";
                 card.innerHTML = `
                     <div class="card-header">
                         <h3>SIYC Migration Contract</h3>
@@ -440,18 +425,18 @@
                     </div>
                     <div class="card-content">
                         <h4>SIYC V1 to V2 Migration</h4>
-                        <p class="description">Migrate your SIYC V1 NFTs to V2 by depositing them into the contract. Ensure approval is set for the contract to transfer your NFTs.</p>
+                        <p class="description">Migrate your SIYC V1 NFTs to V2 by entering their IDs. Use commas to separate multiple IDs (e.g., 1,2,3). Ensure you own the NFTs.</p>
                     </div>
                     <div class="action-section">
                         <div class="action-box">
                             <h5>Deposit SIYC V1 NFTs</h5>
-                            <div class="token-list">${tokenListHtml}</div>
-                            <p class="stake-note">Note: Select up to 50 NFTs to deposit at once.</p>
-                            <button class="action-button" id="depositButton" ${!account || !tokenIds.length ? 'disabled' : ''}>Deposit Selected</button>
+                            <input type="text" id="tokenIdsInput" placeholder="Enter NFT IDs (e.g., 1,2,3)">
+                            <p class="stake-note">Note: Enter up to 50 NFT IDs, separated by commas.</p>
+                            <button class="action-button" id="depositButton" ${!account ? 'disabled' : ''}>Approve & Deposit</button>
                         </div>
                     </div>
                 `;
-                setupCardListeners(card, contract, oldSIYCContract);
+                setupCardListeners(card, contract, oldSIYCContract, tokenIds);
                 showStatus();
             } catch (e) {
                 showStatus(`Failed to load data: ${e.message}`, true);
@@ -460,7 +445,7 @@
             }
         }
 
-        function setupCardListeners(card, contract, oldSIYCContract) {
+        function setupCardListeners(card, contract, oldSIYCContract, ownedTokenIds) {
             card.querySelectorAll(".copy-button").forEach(button => {
                 button.addEventListener("click", () => {
                     navigator.clipboard.writeText(button.dataset.address).then(() => {
@@ -471,31 +456,48 @@
             });
 
             const depositButton = card.querySelector("#depositButton");
-            const checkboxes = card.querySelectorAll(".token-checkbox");
-            checkboxes.forEach(checkbox => {
-                checkbox.addEventListener("change", () => {
-                    const selected = Array.from(checkboxes).filter(cb => cb.checked).length;
-                    depositButton.disabled = !account || selected === 0 || selected > 50;
-                });
+            const tokenIdsInput = card.querySelector("#tokenIdsInput");
+
+            tokenIdsInput.addEventListener("input", () => {
+                const input = tokenIdsInput.value.trim();
+                const tokenIds = input ? input.split(",").map(id => id.trim()) : [];
+                const valid = tokenIds.length > 0 && tokenIds.length <= 50 && tokenIds.every(id => /^\d+$/.test(id));
+                depositButton.disabled = !account || !valid;
+                if (!valid && input) showStatus("Enter valid NFT IDs (1-50, comma-separated).", true);
             });
 
-            depositButton.addEventListener("click", async () => await depositNFTs(card, contract, oldSIYCContract));
+            depositButton.addEventListener("click", async () => await depositNFTs(card, contract, oldSIYCContract, ownedTokenIds));
         }
 
-        async function depositNFTs(card, contract, oldSIYCContract) {
+        async function depositNFTs(card, contract, oldSIYCContract, ownedTokenIds) {
             if (!web3 || !account) {
                 showStatus("Please connect wallet.", true);
                 return;
             }
-            const checkboxes = card.querySelectorAll(".token-checkbox:checked");
-            const tokenIds = Array.from(checkboxes).map(cb => cb.value);
+            const tokenIdsInput = card.querySelector("#tokenIdsInput").value.trim();
+            const tokenIds = tokenIdsInput ? tokenIdsInput.split(",").map(id => id.trim()) : [];
             if (tokenIds.length === 0) {
-                showStatus("Please select at least one NFT.", true);
+                showStatus("Please enter at least one NFT ID.", true);
                 return;
             }
             if (tokenIds.length > 50) {
                 showStatus("Cannot deposit more than 50 NFTs at once.", true);
                 return;
+            }
+            if (!tokenIds.every(id => /^\d+$/.test(id))) {
+                showStatus("Invalid NFT IDs. Use numbers only.", true);
+                return;
+            }
+            for (const id of tokenIds) {
+                if (!ownedTokenIds.includes(id)) {
+                    showStatus(`You do not own NFT #${id}.`, true);
+                    return;
+                }
+                const isDeposited = await contract.methods.depositedTokens(id).call();
+                if (isDeposited) {
+                    showStatus(`NFT #${id} already deposited.`, true);
+                    return;
+                }
             }
             const button = card.querySelector("#depositButton");
             try {
@@ -505,10 +507,12 @@
                 if (!isApproved) {
                     showStatus("Approving contract for NFT transfer...");
                     await oldSIYCContract.methods.setApprovalForAll(contractAddress, true).send({ from: account });
+                    showStatus("Approval successful!");
                 }
                 showStatus("Processing deposit...");
                 await contract.methods.depositNFTs(tokenIds).send({ from: account });
                 showStatus("Deposit successful!");
+                card.querySelector("#tokenIdsInput").value = "";
                 await loadActionCard();
             } catch (e) {
                 const msg = e.code === 4001 ? "User rejected transaction." : e.message.includes("revert") ? "Transaction reverted." : e.message;
