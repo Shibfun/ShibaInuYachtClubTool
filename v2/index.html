@@ -325,7 +325,6 @@
             {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},
             {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
             {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"walletOfOwner","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},
             {"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"}
         ];
 
@@ -411,10 +410,6 @@
                 }
                 const contract = new web3.eth.Contract(contractAbi, contractAddress);
                 const oldSIYCContract = new web3.eth.Contract(oldSIYCAbi, oldSIYCAddress);
-                let tokenIds = [];
-                if (account) {
-                    tokenIds = await oldSIYCContract.methods.walletOfOwner(account).call();
-                }
                 card.innerHTML = `
                     <div class="card-header">
                         <h3>SIYC Migration Contract</h3>
@@ -436,7 +431,7 @@
                         </div>
                     </div>
                 `;
-                setupCardListeners(card, contract, oldSIYCContract, tokenIds);
+                setupCardListeners(card, contract, oldSIYCContract);
                 showStatus();
             } catch (e) {
                 showStatus(`Failed to load data: ${e.message}`, true);
@@ -445,7 +440,7 @@
             }
         }
 
-        function setupCardListeners(card, contract, oldSIYCContract, ownedTokenIds) {
+        function setupCardListeners(card, contract, oldSIYCContract) {
             card.querySelectorAll(".copy-button").forEach(button => {
                 button.addEventListener("click", () => {
                     navigator.clipboard.writeText(button.dataset.address).then(() => {
@@ -466,16 +461,16 @@
                 if (!valid && input) showStatus("Enter valid NFT IDs (1-50, comma-separated).", true);
             });
 
-            depositButton.addEventListener("click", async () => await depositNFTs(card, contract, oldSIYCContract, ownedTokenIds));
+            depositButton.addEventListener("click", async () => await depositNFTs(card, contract, oldSIYCContract));
         }
 
-        async function depositNFTs(card, contract, oldSIYCContract, ownedTokenIds) {
+        async function depositNFTs(card, contract, oldSIYCContract) {
             if (!web3 || !account) {
                 showStatus("Please connect wallet.", true);
                 return;
             }
             const tokenIdsInput = card.querySelector("#tokenIdsInput").value.trim();
-            const tokenIds = tokenIdsInput ? tokenIdsInput.split(",").map(id => id.trim()) : [];
+            const tokenIds = tokenIdsInput ? tokenIdsInput.split(",").map(id => id.trim()).filter(id => id !== "") : [];
             if (tokenIds.length === 0) {
                 showStatus("Please enter at least one NFT ID.", true);
                 return;
@@ -488,21 +483,24 @@
                 showStatus("Invalid NFT IDs. Use numbers only.", true);
                 return;
             }
-            for (const id of tokenIds) {
-                if (!ownedTokenIds.includes(id)) {
-                    showStatus(`You do not own NFT #${id}.`, true);
-                    return;
-                }
-                const isDeposited = await contract.methods.depositedTokens(id).call();
-                if (isDeposited) {
-                    showStatus(`NFT #${id} already deposited.`, true);
-                    return;
-                }
-            }
+            console.log("Input token IDs:", tokenIds);
             const button = card.querySelector("#depositButton");
             try {
                 button.classList.add("loading");
                 button.disabled = true;
+                for (const id of tokenIds) {
+                    const owner = await oldSIYCContract.methods.ownerOf(id).call();
+                    console.log(`NFT #${id} owner:`, owner);
+                    if (owner.toLowerCase() !== account.toLowerCase()) {
+                        showStatus(`You do not own NFT #${id}.`, true);
+                        return;
+                    }
+                    const isDeposited = await contract.methods.depositedTokens(id).call();
+                    if (isDeposited) {
+                        showStatus(`NFT #${id} already deposited.`, true);
+                        return;
+                    }
+                }
                 const isApproved = await oldSIYCContract.methods.isApprovedForAll(account, contractAddress).call();
                 if (!isApproved) {
                     showStatus("Approving contract for NFT transfer...");
@@ -517,6 +515,7 @@
             } catch (e) {
                 const msg = e.code === 4001 ? "User rejected transaction." : e.message.includes("revert") ? "Transaction reverted." : e.message;
                 showStatus(`Deposit failed: ${msg}`, true);
+                console.error("Deposit error:", e);
             } finally {
                 button.classList.remove("loading");
                 button.disabled = false;
