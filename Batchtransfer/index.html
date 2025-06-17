@@ -1001,7 +1001,7 @@
             batchButton.disabled = true;
 
             try {
-                // Parse input
+                // Parse input lines
                 const lines = batchInput.split('\n').filter(line => line.trim() !== '');
                 if (lines.length === 0) {
                     showModal('Please provide at least one address and amount.');
@@ -1010,6 +1010,7 @@
                     return;
                 }
 
+                // Validate and collect transfers
                 const transfers = [];
                 let totalAmount = 0;
                 for (const line of lines) {
@@ -1031,7 +1032,7 @@
                     totalAmount += amount;
                 }
 
-                // Validate total amount
+                // Check total amount limit
                 if (totalAmount > 100) {
                     showModal('Total transfer amount exceeds 100 NFTs.');
                     batchButton.classList.remove('loading');
@@ -1053,7 +1054,7 @@
                 let tokenIndex = 0;
                 showModal('Initiating batch transfer...');
 
-                // Perform transfers
+                // Execute transfers
                 for (const { address, amount } of transfers) {
                     for (let i = 0; i < amount; i++) {
                         const tokenId = shuffledTokenIds[tokenIndex++];
