@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shiba Inu Yacht Club</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            font-family: 'Montserrat', Arial, sans-serif; 
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d); 
+            margin: 0; 
+            padding: 20px; 
+            min-height: 100vh; 
+            color: #fff; 
+        }
+        #nftCanvas { 
+            border-radius: 15px; 
+            box-shadow: 0 8px 20px rgba(255, 140, 0, 0.3); 
+            background-color: #fff; 
+            width: 100%; 
+            max-width: 512px; 
+            height: auto; 
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 20px; 
+        }
+        h1 { 
+            font-size: 48px; 
+            color: #ff8c00; 
+            text-shadow: 0 0 10px rgba(255, 140, 0, 0.5); 
+        }
+        .wallet-info { 
+            margin: 10px 0; 
+            font-size: 16px; 
+        }
+        .controls { 
+            margin: 20px 0; 
+            display: flex; 
+            flex-wrap: nowrap; 
+            gap: 10px; 
+            width: 100%; 
+            max-width: 1200px; 
+            overflow-x: auto; 
+        }
+        .control-group { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            min-width: 140px; 
+        }
+        label { 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+            font-size: 14px; 
+            color: #ff8c00; 
+        }
+        .layer-value { 
+            margin-bottom: 5px; 
+            font-size: 12px; 
+            text-align: center; 
+            color: #fff; 
+            max-width: 100%; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap; 
+        }
+        .cycle-buttons { 
+            display: flex; 
+            gap: 5px; 
+        }
+        .cycle-btn { 
+            padding: 5px 10px; 
+            font-size: 12px; 
+            background: linear-gradient(45deg, #ff8c00, #e07b00); 
+            color: #1a1a1a; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            transition: transform 0.2s; 
+        }
+        .cycle-btn:hover { 
+            transform: scale(1.05); 
+        }
+        select { 
+            margin-top: 5px; 
+            padding: 5px; 
+            font-size: 12px; 
+            width: 100%; 
+            border-radius: 5px; 
+            background: #333; 
+            color: #fff; 
+            border: 1px solid #ff8c00; 
+        }
+        .action-buttons { 
+            display: flex; 
+            gap: 15px; 
+            margin: 20px 0; 
+            flex-wrap: wrap; 
+        }
+        .action-btn { 
+            padding: 10px 20px; 
+            font-size: 16px; 
+            background: linear-gradient(45deg, #ff8c00, #e07b00); 
+            color: #1a1a1a; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            transition: transform 0.2s, box-shadow 0.2s; 
+        }
+        .action-btn:hover { 
+            transform: scale(1.05); 
+            box-shadow: 0 0 15px rgba(255, 140, 0, 0.7); 
+        }
+        .action-btn:disabled { 
+            background: #666; 
+            cursor: not-allowed; 
+        }
+        .action-btn.loading { 
+            opacity: 0.7; 
+            pointer-events: none; 
+        }
+        .modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0, 0, 0, 0.8); 
+            justify-content: center; 
+            align-items: center; 
+        }
+        .modal-content { 
+            background: #2d2d2d; 
+            padding: 20px; 
+            border-radius: 15px; 
+            text-align: center; 
+            color: #fff; 
+            max-width: 350px; 
+            border: 2px solid #ff8c00; 
+            box-shadow: 0 0 20px rgba(255, 140, 0, 0.5); 
+        }
+        .modal-content p { 
+            margin-bottom: 15px; 
+            font-size: 18px; 
+        }
+        .modal-content button { 
+            padding: 10px 20px; 
+            background: #ff8c00; 
+            color: #1a1a1a; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+        }
+        .mint-list { 
+            margin-top: 30px; 
+            width: 100%; 
+            max-width: 800px; 
+        }
+        .mint-list h2 { 
+            font-size: 32px; 
+            color: #ff8c00; 
+            text-align: center; 
+        }
+        #mintList { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 20px; 
+            justify-content: center; 
+        }
+        .mint-card { 
+            text-align: center; 
+            background: #333; 
+            padding: 10px; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 10px rgba(255, 140, 0, 0.2); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+        }
+        .mint-card img { 
+            width: 100%; 
+            max-width: 150px; 
+            height: auto; 
+            border-radius: 5px; 
+        }
+        .mint-card p { 
+            font-size: 14px; 
+            margin: 5px 0; 
+        }
+        .mint-card .action-btn { 
+            padding: 6px 12px; 
+            font-size: 12px; 
+            width: 100%; 
+            margin: 5px 0; 
+        }
+        input[type="password"] { 
+            padding: 8px; 
+            font-size: 14px; 
+            width: 100%; 
+            max-width: 400px; 
+            border-radius: 5px; 
+            border: 1px solid #ff8c00; 
+            background: #1a1a1a; 
+            color: #fff; 
+        }
+        @media (max-width: 768px) {
+            h1 { font-size: 32px; }
+            .controls { flex-wrap: wrap; gap: 8px; }
+            .control-group { min-width: 100px; }
+            label { font-size: 12px; }
+            .layer-value { font-size: 10px; }
+            .cycle-btn, select { font-size: 10px; padding: 3px 6px; }
+            .action-btn { padding: 8px 16px; font-size: 14px; }
+            .wallet-info { font-size: 14px; }
+            .modal-content { max-width: 90%; padding: 15px; }
+            .mint-list h2 { font-size: 24px; }
+            #mintList { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .mint-card { padding: 8px; }
+            .mint-card img { max-width: 120px; }
+            .mint-card p { font-size: 12px; }
+            .mint-card .action-btn { padding: 5px 10px; font-size: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Shiba Inu Yacht Club</h1>
+        <div class="wallet-info">
+            <input type="password" id="privateKeyInput" placeholder="Enter Private Key">
+        </div>
+        <button id="connectWalletBtn" class="action-btn">Use Private Key</button>
+    </div>
+    <div class="controls">
+        <div class="control-group">
+            <label>Background</label>
+            <div id="backgroundValue" class="layer-value">Aquamarine</div>
+            <div class="cycle-buttons">
+                <button class="cycle-btn" onclick="cycleLayer('Background', -1)">Prev</button>
+                <button class="cycle-btn" onclick="cycleLayer('Background', 1)">Next</button>
+            </div>
+            <select id="backgroundSelect" onchange="selectLayer('Background')">
+                <option value="0">Aquamarine</option>
+                <option value="1">Army-Green</option>
+                <option value="2">Blue</option>
+                <option value="3">Gray</option>
+                <option value="4">New-Punk-Blue</option>
+                <option value="5">Orange</option>
+                <option value="6">Purple</option>
+                <option value="7">Yellow</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Fur</label>
+            <div id="furValue" class="layer-value">Black</div>
+            <div class="cycle-buttons">
+                <button class="cycle-btn" onclick="cycleLayer('Fur', -1)">Prev</button>
+                <button class="cycle-btn" onclick="cycleLayer('Fur', 1)">Next</button>
+            </div>
+            <select id="furSelect" onchange="selectLayer('Fur')">
+                <option value="0">Black</option>
+                <option value="1">Blue</option>
+                <option value="2">Brown</option>
+                <option value="3">Dark-Brown</option>
+                <option value="4">Golden-Brown</option>
+                <option value="5">Gray</option>
+                <option value="6">Orange</option>
+                <option value="7">Pink</option>
+                <option value="8">Red</option>
+                <option value="9">Solid-Gold</option>
+                <option value="10">Tan</option>
+                <option value="11">Zombie</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Clothes</label>
+            <div id="clothesValue" class="layer-value">None</div>
+            <div class="cycle-buttons">
+                <button class="cycle-btn" onclick="cycleLayer('Clothes', -1)">Prev</button>
+                <button class="cycle-btn" onclick="cycleLayer('Clothes', 1)">Next</button>
+            </div>
+            <select id="clothesSelect" onchange="selectLayer('Clothes')">
+                <option value="0">None</option>
+                <option value="1">Admirals-Coat</option>
+                <option value="2">Bandolier</option>
+                <option value="3">Biker-Vest</option>
+                <option value="4">Black-Holes-T</option>
+                <option value="5">Black-Suit</option>
+                <option value="6">Black-T</option>
+                <option value="7">Blue-Dress</option>
+                <option value="8">Bone-Necklace</option>
+                <option value="9">Bone-Tee</option>
+                <option value="10">Caveman-Pelt</option>
+                <option value="11">Cowboy-Shirt</option>
+                <option value="12">Guayabera</option>
+                <option value="13">Hawaiian</option>
+                <option value="14">Hip-Hop</option>
+                <option value="15">Kings-Robe</option>
+                <option value="16">Lab-Coat</option>
+                <option value="17">Leather-Jacket</option>
+                <option value="18">Leather-Punk-Jacket</option>
+                <option value="19">Lumberjack-Shirt</option>
+                <option value="20">Navy-Striped-Tee</option>
+                <option value="21">Pimp-Coat</option>
+                <option value="22">Prison-Jumpsuit</option>
+                <option value="23">Prom-Dress</option>
+                <option value="24">Puffy-Vest</option>
+                <option value="25">Rainbow-Suspenders</option>
+                <option value="26">Sailor-Shirt</option>
+                <option value="27">Service</option>
+                <option value="28">SIYC-T-Red</option>
+                <option value="29">Sleeveless-Logo-T</option>
+                <option value="30">Sleeveless-T</option>
+                <option value="31">Smoking-Jacket</option>
+                <option value="32">Space-Suit</option>
+                <option value="33">Striped-Tee</option>
+                <option value="34">Stunt-Jacket</option>
+                <option value="35">Tanktop</option>
+                <option value="36">Tie-Dye</option>
+                <option value="37">Toga</option>
+                <option value="38">Tuxedo-Tee</option>
+                <option value="39">Tweed-Suit</option>
+                <option value="40">Vietnam-Jacket</option>
+                <option value="41">Wool-Turtleneck</option>
+                <option value="42">Work-Vest</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Eyes</label>
+            <div id="eyesValue" class="layer-value">3D</div>
+            <div class="cycle-buttons">
+                <button class="cycle-btn" onclick="cycleLayer('Eyes', -1)">Prev</button>
+                <button class="cycle-btn" onclick="cycleLayer('Eyes', 1)">Next</button>
+            </div>
+            <select id="eyesSelect" onchange="selectLayer('Eyes')">
+                <option value="0">3D</option>
+                <option value="1">Angry</option>
+                <option value="2">Blindfold</option>
+                <option value="3">Bloodshot</option>
+                <option value="4">Blue-Beams</option>
+                <option value="5">Bored</option>
+                <option value="6">Closed</option>
+                <option value="7">Coins</option>
+                <option value="8">Crazy</option>
+                <option value="9">Cyborg</option>
+                <option value="10">Eyepatch</option>
+                <option value="11">Heart</option>
+                <option value="12">Holographic</option>
+                <option value="13">Hypnotized</option>
+                <option value="14">Laser-Eyes</option>
+                <option value="15">Robot</option>
+                <option value="16">Sad</option>
+                <option value="17">Scumbag</option>
+                <option value="18">Sleepy</option>
+                <option value="19">Sunglasses</option>
+                <option value="20">Wide-Eyed</option>
+                <option value="21">X-Eyes</option>
+                <option value="22">Zombie-Eyes</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Hat</label>
+            <div id="hatValue" class="layer-value">None</div>
+            <div class="cycle-buttons">
+                <button class="cycle-btn" onclick="cycleLayer('Hat', -1)">Prev</button>
+                <button class="cycle-btn" onclick="cycleLayer('Hat', 1)">Next</button>
+            </div>
+            <select id="hatSelect" onchange="selectLayer('Hat')">
+                <option value="0">None</option>
+                <option value="1">Army-Hat</option>
+                <option value="2">Baby's-Bonnet</option>
+                <option value="3">Bandana-Blue</option>
+                <option value="4">Beanie</option>
+                <option value="5">Bowler</option>
+                <option value="6">Bunny-Ears</option>
+                <option value="7">Commie-Hat</option>
+                <option value="8">Cowboy-Hat</option>
+                <option value="9">Faux-Hawk</option>
+                <option value="10">halo-Hair</option>
+                <option value="11">Horns</option>
+                <option value="12">Irish-Boho</option>
+                <option value="13">King's-Crown</option>
+                <option value="14">Laurel-Wreath</option>
+                <option value="15">Party-Hat-1</option>
+                <option value="16">Party-Hat-2</option>
+                <option value="17">Police-Motorcycle-Helmet</option>
+                <option value="18">Prussian-Helmet</option>
+                <option value="19">S&m-Hat</option>
+                <option value="20">Safari</option>
+                <option value="21">Sea-Captain's-Hat</option>
+                <option value="22">Seaman's-Hat</option>
+                <option value="23">Short-Mohawk</option>
+                <option value="24">SIYC-Flipped-Brim</option>
+                <option value="25">SIYC-Hat-Black</option>
+                <option value="26">SIYC-Hat-Red</option>
+                <option value="27">Spinner-Hat</option>
+                <option value="28">Stuntman-Helmet</option>
+                <option value="29">Sushi-Chef-Headband</option>
+                <option value="30">Trippy-Captain's-Hat</option>
+                <option value="31">Vietnam-Era-Helmet</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Mouth</label>
+            <div id="mouthValue" class="layer-value">Bored</div>
+            <div class="cycle-buttons">
+                <button class="cycle-btn" onclick="cycleLayer('Mouth', -1)">Prev</button>
+                <button class="cycle-btn" onclick="cycleLayer('Mouth', 1)">Next</button>
+            </div>
+            <select id="mouthSelect" onchange="selectLayer('Mouth')">
+                <option value="0">Bored</option>
+                <option value="1">Bored-Bubblegum</option>
+                <option value="2">Bored-Cigar</option>
+                <option value="3">Bored-Cigarette</option>
+                <option value="4">Bored-Dagger</option>
+                <option value="5">Bored-Kazoo</option>
+                <option value="6">Bored-Party-Horn</option>
+                <option value="7">Bored-Pipe</option>
+                <option value="8">Bored-Pizza</option>
+                <option value="9">Discomfort</option>
+                <option value="10">Dumbfounded</option>
+                <option value="11">Grin</option>
+                <option value="12">Grin-Diamond-Grill</option>
+                <option value="13">Grin-Gold-Grill</option>
+                <option value="14">Grin-Multicolored</option>
+                <option value="15">Jovial</option>
+                <option value="16">Phoneme-L</option>
+                <option value="17">Phoneme-Oh</option>
+                <option value="18">Phoneme-ooo</option>
+                <option value="19">Phoneme-Vuh</option>
+                <option value="20">Phoneme-Wah</option>
+                <option value="21">Rage</option>
+                <option value="22">Tongue-Out</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Earring</label>
+            <div id="earringValue" class="layer-value">None</div>
+            <div class="cycle-buttons">
+                <button class="cycle-btn" onclick="cycleLayer('Earring', -1)">Prev</button>
+                <button class="cycle-btn" onclick="cycleLayer('Earring', 1)">Next</button>
+            </div>
+            <select id="earringSelect" onchange="selectLayer('Earring')">
+                <option value="0">None</option>
+                <option value="1">Cross</option>
+                <option value="2">Diamond-Stud</option>
+                <option value="3">Gold-Hoop</option>
+                <option value="4">Gold-Stud</option>
+                <option value="5">Silver-Hoop</option>
+                <option value="6">Silver-Stud</option>
+            </select>
+        </div>
+    </div>
+    <canvas id="nftCanvas" width="512" height="512"></canvas>
+    <div class="action-buttons">
+        <button id="randomizeBtn" class="action-btn" onclick="randomizeNFT()">Randomize</button>
+        <button id="generate100Btn" class="action-btn" onclick="generate100RandomNFTs()">Generate 100 Random NFTs</button>
+        <button id="addToListBtn" class="action-btn" onclick="addToMintList()">Add to Mint List</button>
+        <button id="downloadBtn" class="action-btn" onclick="downloadNFT()">Download PNG</button>
+        <button id="mintBtn" class="action-btn" onclick="startMinting()" disabled>Start Minting</button>
+        <button id="resetBtn" class="action-btn" onclick="resetLockedLayers()">Reset Selections</button>
+    </div>
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <p id="modalMessage"></p>
+            <button onclick="closeModal()">OK</button>
+        </div>
+    </div>
+    <div class="mint-list">
+        <h2>NFTs to Mint</h2>
+        <div id="mintList"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
+    <script>
+        const layers = {
+            Background: ["Aquamarine", "Army-Green", "Blue", "Gray", "New-Punk-Blue", "Orange", "Purple", "Yellow"],
+            Fur: ["Black", "Blue", "Brown", "Dark-Brown", "Golden-Brown", "Gray", "Orange", "Pink", "Red", "Solid-Gold", "Tan", "Zombie"],
+            Clothes: ["None", "Admirals-Coat", "Bandolier", "Biker-Vest", "Black-Holes-T", "Black-Suit", "Black-T", "Blue-Dress", "Bone-Necklace", "Bone-Tee", "Caveman-Pelt", "Cowboy-Shirt", "Guayabera", "Hawaiian", "Hip-Hop", "Kings-Robe", "Lab-Coat", "Leather-Jacket", "Leather-Punk-Jacket", "Lumberjack-Shirt", "Navy-Striped-Tee", "Pimp-Coat", "Prison-Jumpsuit", "Prom-Dress", "Puffy-Vest", "Rainbow-Suspenders", "Sailor-Shirt", "Service", "SIYC-T-Red", "Sleeveless-Logo-T", "Sleeveless-T", "Smoking-Jacket", "Space-Suit", "Striped-Tee", "Stunt-Jacket", "Tanktop", "Tie-Dye", "Toga", "Tuxedo-Tee", "Tweed-Suit", "Vietnam-Jacket", "Wool-Turtleneck", "Work-Vest"],
+            Eyes: ["3D", "Angry", "Blindfold", "Bloodshot", "Blue-Beams", "Bored", "Closed", "Coins", "Crazy", "Cyborg", "Eyepatch", "Heart", "Holographic", "Hypnotized", "Laser-Eyes", "Robot", "Sad", "Scumbag", "Sleepy", "Sunglasses", "Wide-Eyed", "X-Eyes", "Zombie-Eyes"],
+            Hat: ["None", "Army-Hat", "Baby's-Bonnet", "Bandana-Blue", "Beanie", "Bowler", "Bunny-Ears", "Commie-Hat", "Cowboy-Hat", "Faux-Hawk", "halo-Hair", "Horns", "Irish-Boho", "King's-Crown", "Laurel-Wreath", "Party-Hat-1", "Party-Hat-2", "Police-Motorcycle-Helmet", "Prussian-Helmet", "S&m-Hat", "Safari", "Sea-Captain's-Hat", "Seaman's-Hat", "Short-Mohawk", "SIYC-Flipped-Brim", "SIYC-Hat-Black", "SIYC-Hat-Red", "Spinner-Hat", "Stuntman-Helmet", "Sushi-Chef-Headband", "Trippy-Captain's-Hat", "Vietnam-Era-Helmet"],
+            Mouth: ["Bored", "Bored-Bubblegum", "Bored-Cigar", "Bored-Cigarette", "Bored-Dagger", "Bored-Kazoo", "Bored-Party-Horn", "Bored-Pipe", "Bored-Pizza", "Discomfort", "Dumbfounded", "Grin", "Grin-Diamond-Grill", "Grin-Gold-Grill", "Grin-Multicolored", "Jovial", "Phoneme-L", "Phoneme-Oh", "Phoneme-ooo", "Phoneme-Vuh", "Phoneme-Wah", "Rage", "Tongue-Out"],
+            Earring: ["None", "Cross", "Diamond-Stud", "Gold-Hoop", "Gold-Stud", "Silver-Hoop", "Silver-Stud"]
+        };
+
+        const layerOrder = ["Background", "Fur", "Clothes", "Eyes", "Hat", "Mouth", "Earring"];
+        const currentIndices = {
+            Background: 0,
+            Fur: 0,
+            Clothes: 0,
+            Eyes: 0,
+            Hat: 0,
+            Mouth: 0,
+            Earring: 0
+        };
+        const lockedLayers = {
+            Background: false,
+            Fur: false,
+            Clothes: false,
+            Eyes: false,
+            Hat: false,
+            Mouth: false,
+            Earring: false
+        };
+
+        const canvas = document.getElementById("nftCanvas");
+        const ctx = canvas.getContext("2d");
+        let web3, account, contract;
+        const CONTRACT_ADDRESS = "0xB33012feB12D590f4ee9B0D9999e95C30303A209";
+        const MINT_PRICE = "10000000000000000000";
+        const IMAGE_BASE_URL = "https://id.presalekiller.com/images/";
+        const GAS_LIMIT = 20000000;
+        let mintList = [];
+        let editingIndex = -1;
+
+        const CONTRACT_ABI = [
+            {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"approved","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Approval","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"operator","type":"address"},{"indexed":false,"internalType":"bool","name":"approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Transfer","type":"event"},
+            {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"addressMintedBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"cost","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"maxSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"string","name":"uri","type":"string"},{"internalType":"string[]","name":"attributes","type":"string[]"}],"name":"mintNFT","outputs":[],"stateMutability":"payable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"mintedCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"string","name":"uri","type":"string"},{"internalType":"bytes32","name":"attributes","type":"bytes32"}],"name":"ownerMintWithData","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"bytes","name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"_approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"_newCost","type":"uint256"}],"name":"setCost","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"index","type":"uint256"}],"name":"tokenByIndex","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"index","type":"uint256"}],"name":"tokenOfOwnerByIndex","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"string","name":"newTokenURI","type":"string"}],"name":"updateTokenMetadata","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"name":"usedAttributeCombinations","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"_owner","type":"address"}],"name":"walletOfOwner","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"payable","type":"function"}
+        ];
+
+        function showModal(message) {
+            document.getElementById('modalMessage').innerHTML = message;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        async function connectWallet() {
+            const connectButton = document.getElementById('connectWalletBtn');
+            connectButton.classList.add('loading');
+            const privateKey = document.getElementById('privateKeyInput').value.trim();
+            if (!privateKey) {
+                showModal('Please enter a valid private key.');
+                connectButton.classList.remove('loading');
+                return;
+            }
+            try {
+                web3 = new Web3('https://www.shibrpc.com');
+                const accountObj = web3.eth.accounts.privateKeyToAccount(privateKey.startsWith('0x') ? privateKey : '0x' + privateKey);
+                web3.eth.accounts.wallet.add(accountObj);
+                account = accountObj.address;
+                contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+                const balance = await web3.eth.getBalance(account);
+                if (web3.utils.toBN(balance).lt(web3.utils.toBN(MINT_PRICE))) {
+                    throw new Error('Insufficient BONE balance. Need at least 10 BONE plus gas.');
+                }
+                showModal(`Private key loaded. Address: ${account.slice(0, 6)}...${account.slice(-4)}`);
+                document.getElementById('mintBtn').disabled = mintList.length === 0;
+            } catch (error) {
+                showModal('Error: ' + error.message);
+            } finally {
+                connectButton.classList.remove('loading');
+            }
+        }
+
+        function updateLayerValue(layer) {
+            document.getElementById(`${layer.toLowerCase()}Value`).textContent = layers[layer][currentIndices[layer]];
+            document.getElementById(`${layer.toLowerCase()}Select`).value = currentIndices[layer];
+        }
+
+        function checkEarringHatConflict(layer) {
+            if (layer === "Earring" && layers.Earring[currentIndices.Earring] !== "None") {
+                currentIndices.Hat = 0;
+                updateLayerValue("Hat");
+            } else if (layer === "Hat" && layers.Hat[currentIndices.Hat] !== "None") {
+                currentIndices.Earring = 0;
+                updateLayerValue("Earring");
+            }
+        }
+
+        async function drawLayer(layerName, layerValue) {
+            if (layerValue === "None") return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = `${IMAGE_BASE_URL}${layerName}/${layerValue}.png`;
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve();
+                };
+                img.onerror = () => reject(new Error(`Failed to load image: ${img.src}`));
+            });
+        }
+
+        async function updateNFT() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (const layer of layerOrder) {
+                try {
+                    await drawLayer(layer, layers[layer][currentIndices[layer]]);
+                } catch (error) {
+                    showModal(error.message);
+                }
+            }
+        }
+
+        function cycleLayer(layer, direction) {
+            currentIndices[layer] = (currentIndices[layer] + direction + layers[layer].length) % layers[layer].length;
+            lockedLayers[layer] = true;
+            updateLayerValue(layer);
+            checkEarringHatConflict(layer);
+            updateNFT();
+        }
+
+        function selectLayer(layer) {
+            currentIndices[layer] = parseInt(document.getElementById(`${layer.toLowerCase()}Select`).value);
+            lockedLayers[layer] = true;
+            updateLayerValue(layer);
+            checkEarringHatConflict(layer);
+            updateNFT();
+        }
+
+        function randomizeNFT() {
+            const indices = { ...currentIndices };
+            for (const layer of layerOrder) {
+                if (!lockedLayers[layer]) {
+                    indices[layer] = Math.floor(Math.random() * layers[layer].length);
+                }
+            }
+            if (layers.Earring[indices.Earring] !== "None" && layers.Hat[indices.Hat] !== "None") {
+                if (!lockedLayers.Earring && !lockedLayers.Hat) {
+                    Math.random() < 0.5 ? indices.Hat = 0 : indices.Earring = 0;
+                } else if (!lockedLayers.Earring) {
+                    indices.Earring = 0;
+                } else if (!lockedLayers.Hat) {
+                    indices.Hat = 0;
+                }
+            }
+            return indices;
+        }
+
+        async function generateSingleRandomNFT() {
+            const indices = randomizeNFT();
+            Object.assign(currentIndices, indices);
+            for (const layer of layerOrder) {
+                updateLayerValue(layer);
+            }
+            await updateNFT();
+            return { indices: { ...currentIndices }, imageData: canvas.toDataURL("image/png") };
+        }
+
+        async function generate100RandomNFTs() {
+            const generateButton = document.getElementById('generate100Btn');
+            generateButton.classList.add('loading');
+            try {
+                showModal('Generating 100 random NFTs...');
+                mintList = [];
+                for (let i = 0; i < 100; i++) {
+                    const nft = await generateSingleRandomNFT();
+                    mintList.push(nft);
+                    if (i % 10 === 0) {
+                        showModal(`Generated ${i} of 100 NFTs...`);
+                    }
+                }
+                await displayMintList();
+                document.getElementById('mintBtn').disabled = !account || mintList.length === 0;
+                showModal('100 random NFTs generated successfully!');
+            } catch (error) {
+                showModal('Error generating NFTs: ' + error.message);
+            } finally {
+                generateButton.classList.remove('loading');
+            }
+        }
+
+        function downloadNFT() {
+            const link = document.createElement("a");
+            link.download = "nft-custom.png";
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        }
+
+        async function addToMintList() {
+            const indices = { ...currentIndices };
+            const imageData = canvas.toDataURL("image/png");
+            if (editingIndex >= 0) {
+                mintList[editingIndex] = { indices, imageData };
+                editingIndex = -1;
+                document.getElementById('addToListBtn').textContent = 'Add to Mint List';
+                showModal('NFT updated in mint list!');
+            } else {
+                mintList.push({ indices, imageData });
+                showModal('NFT added to mint list!');
+            }
+            document.getElementById('mintBtn').disabled = !account || mintList.length === 0;
+            await displayMintList();
+        }
+
+        async function editNFT(index) {
+            editingIndex = index;
+            Object.assign(currentIndices, mintList[index].indices);
+            for (const layer of layerOrder) {
+                updateLayerValue(layer);
+            }
+            await updateNFT();
+            document.getElementById('addToListBtn').textContent = 'Update NFT';
+            showModal(`Editing NFT ${index + 1}. Make changes and click "Update NFT".`);
+        }
+
+        async function displayMintList() {
+            const mintListDiv = document.getElementById('mintList');
+            mintListDiv.innerHTML = '';
+            mintList.forEach((item, index) => {
+                const mintCard = document.createElement('div');
+                mintCard.className = 'mint-card';
+                const attributes = layerOrder.map(layer => `${layer}: ${layers[layer][item.indices[layer]]}`).join('<br>');
+                mintCard.innerHTML = `
+                    <img src="${item.imageData}" alt="NFT ${index + 1}">
+                    <p>NFT ${index + 1}</p>
+                    <p style="font-size: 10px;">${attributes}</p>
+                    <button class="action-btn" onclick="editNFT(${index})">Edit</button>
+                    <button class="action-btn" onclick="removeFromMintList(${index})">Remove</button>
+                `;
+                mintListDiv.appendChild(mintCard);
+            });
+        }
+
+        function removeFromMintList(index) {
+            mintList.splice(index, 1);
+            document.getElementById('mintBtn').disabled = !account || mintList.length === 0;
+            if (editingIndex === index) {
+                editingIndex = -1;
+                document.getElementById('addToListBtn').textContent = 'Add to Mint List';
+            } else if (editingIndex > index) {
+                editingIndex--;
+            }
+            displayMintList();
+            showModal(`NFT ${index + 1} removed from mint list.`);
+        }
+
+        async function preloadImages(indices) {
+            const imagePromises = [];
+            for (const layer of layerOrder) {
+                const layerValue = layers[layer][indices[layer]];
+                if (layerValue !== "None") {
+                    imagePromises.push(new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.crossOrigin = "Anonymous";
+                        img.src = `${IMAGE_BASE_URL}${layer}/${layerValue}.png`;
+                        img.onload = () => resolve();
+                        img.onerror = () => reject(new Error(`Failed to load ${img.src}`));
+                    }));
+                }
+            }
+            try {
+                await Promise.all(imagePromises);
+                return true;
+            } catch (error) {
+                showModal(error.message);
+                return false;
+            }
+        }
+
+        async function drawNFT(indices) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (const layer of layerOrder) {
+                try {
+                    await drawLayer(layer, layers[layer][indices[layer]]);
+                } catch (error) {
+                    showModal(error.message);
+                }
+            }
+        }
+
+        async function startMinting() {
+            if (!web3 || !contract || !account) {
+                showModal('Please load a private key first!');
+                return;
+            }
+            if (mintList.length === 0) {
+                showModal('No NFTs selected to mint!');
+                return;
+            }
+            const mintButton = document.getElementById('mintBtn');
+            mintButton.classList.add('loading');
+            mintButton.disabled = true;
+            try {
+                for (let i = 0; i < mintList.length; i++) {
+                    const indices = mintList[i].indices;
+                    const attributes = layerOrder.map(layer => layers[layer][indices[layer]]);
+                    showModal(`Minting NFT ${i + 1}/${mintList.length}: Checking uniqueness...`);
+                    const attrHash = web3.utils.keccak256(web3.eth.abi.encodeParameter('string[]', attributes));
+                    const isUsed = await contract.methods.usedAttributeCombinations(attrHash).call();
+                    if (isUsed) {
+                        showModal(`NFT ${i + 1}: Attribute combination already minted. Skipping.`);
+                        continue;
+                    }
+                    showModal(`NFT ${i + 1}: Loading images...`);
+                    if (!await preloadImages(indices)) {
+                        showModal(`NFT ${i + 1}: Image loading failed. Skipping.`);
+                        continue;
+                    }
+                    showModal(`NFT ${i + 1}: Generating image...`);
+                    await drawNFT(indices);
+                    const imageData = canvas.toDataURL("image/png").split(',')[1];
+                    const totalSupply = await contract.methods.totalSupply().call();
+                    const metadata = {
+                        name: `Shiba Inu Yacht Club #${parseInt(totalSupply) + 1}`,
+                        description: "A unique Shiba Inu Yacht Club NFT",
+                        image: `data:image/png;base64,${imageData}`,
+                        attributes: attributes.map((val, j) => ({
+                            trait_type: layerOrder[j],
+                            value: val
+                        }))
+                    };
+                    const tokenURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
+                    showModal(`NFT ${i + 1}: Estimating gas...`);
+                    let gas;
+                    try {
+                        gas = await contract.methods.mintNFT(tokenURI, attributes).estimateGas({
+                            from: account,
+                            value: MINT_PRICE
+                        });
+                        gas = Math.min(Math.floor(gas * 1.2), GAS_LIMIT);
+                    } catch (error) {
+                        showModal(`NFT ${i + 1}: Gas estimation failed. Using default limit.`);
+                        gas = GAS_LIMIT;
+                    }
+                    showModal(`NFT ${i + 1}: Minting (Gas: ${gas})...`);
+                    await contract.methods.mintNFT(tokenURI, attributes).send({
+                        from: account,
+                        value: MINT_PRICE,
+                        gas: gas
+                    });
+                    showModal(`NFT ${i + 1} minted successfully!`);
+                    mintList.splice(i, 1);
+                    i--;
+                    await displayMintList();
+                }
+                if (mintList.length === 0) {
+                    showModal('All NFTs minted successfully!');
+                }
+            } catch (error) {
+                showModal('Minting error: ' + error.message);
+            } finally {
+                mintButton.classList.remove('loading');
+                mintButton.disabled = !account || mintList.length === 0;
+            }
+        }
+
+        function resetLockedLayers() {
+            for (const layer of layerOrder) {
+                lockedLayers[layer] = false;
+            }
+            showModal('All layer selections reset.');
+        }
+
+        window.onload = () => {
+            for (const layer of layerOrder) {
+                updateLayerValue(layer);
+            }
+            updateNFT();
+        };
+
+        document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
+    </script>
+</body>
+</html>
