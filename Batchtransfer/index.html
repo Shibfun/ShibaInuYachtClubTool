@@ -204,9 +204,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
     <script>
-        let web3, accounts, contract;
-        const CONTRACT_ADDRESS = "0xB33012feB12D590f4ee9B0D9999e95C30303A209";
-        const CONTRACT_ABI = [
+        let web3, accounts, siycContract, multiCallContract;
+        const SIYC_CONTRACT_ADDRESS = "0xB33012feB12D590f4ee9B0D9999e95C30303A209";
+        const MULTICALL_CONTRACT_ADDRESS = "0xC0e5f06aD47986B0F0755F85eE5D949241F8E76A";
+        
+        const SIYC_CONTRACT_ABI = [
             {
                 "inputs": [],
                 "stateMutability": "nonpayable",
@@ -838,6 +840,57 @@
             }
         ];
 
+        const MULTICALL_CONTRACT_ABI = [
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "from",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "address[]",
+                        "name": "to",
+                        "type": "address[]"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256[]",
+                        "name": "tokenIds",
+                        "type": "uint256[]"
+                    }
+                ],
+                "name": "BatchTransfer",
+                "type": "event"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "token",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address[]",
+                        "name": "to",
+                        "type": "address[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "tokenIds",
+                        "type": "uint256[]"
+                    }
+                ],
+                "name": "batchTransfer",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+
         const shibariumMainnet = {
             chainId: '0x6d',
             chainName: 'Shibarium',
@@ -850,18 +903,18 @@
             blockExplorerUrls: ['https://shibariumscan.io']
         };
 
-        // Show modal with a message
+        // Show modal with message
         function showModal(message) {
             document.getElementById('modalMessage').innerHTML = message;
             document.getElementById('modal').style.display = 'flex';
         }
 
-        // Close the modal
+        // Close modal
         function closeModal() {
             document.getElementById('modal').style.display = 'none';
         }
 
-        // Connect to wallet and switch to Shibarium network
+        // Connect to wallet and ensure Shibarium network
         async function connectWallet() {
             const connectButton = document.getElementById('connectWalletBtn');
             connectButton.classList.add('loading');
@@ -891,7 +944,8 @@
                         }
                     }
                 }
-                contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+                siycContract = new web3.eth.Contract(SIYC_CONTRACT_ABI, SIYC_CONTRACT_ADDRESS);
+                multiCallContract = new web3.eth.Contract(MULTICALL_CONTRACT_ABI, MULTICALL_CONTRACT_ADDRESS);
                 showModal('Connected to Shibarium successfully!');
                 updateWalletAddress();
                 document.getElementById('batchTransferBtn').disabled = false;
@@ -915,21 +969,21 @@
 
         // Fetch and display owned NFTs
         async function fetchOwnedNFTs() {
-            if (!web3 || !contract || !accounts) {
+            if (!web3 || !siycContract || !accounts) {
                 showModal('Please connect your wallet first!');
                 return;
             }
             const nftList = document.getElementById('nftList');
             nftList.innerHTML = '<p>Loading your NFTs...</p>';
             try {
-                const tokenIds = await contract.methods.walletOfOwner(accounts[0]).call();
+                const tokenIds = await siycContract.methods.walletOfOwner(accounts[0]).call();
                 if (tokenIds.length === 0) {
                     nftList.innerHTML = '<p>You don’t own any Shiba Inu Yacht Club NFTs yet.</p>';
                     return;
                 }
                 nftList.innerHTML = '';
                 for (const tokenId of tokenIds) {
-                    const tokenURI = await contract.methods.tokenURI(tokenId).call();
+                    const tokenURI = await siycContract.methods.tokenURI(tokenId).call();
                     await displayNFT(tokenId, tokenURI);
                 }
             } catch (error) {
@@ -938,7 +992,7 @@
             }
         }
 
-        // Display a single NFT card
+        // Display individual NFT card
         async function displayNFT(tokenId, tokenURI) {
             const nftList = document.getElementById('nftList');
             let metadata;
@@ -959,9 +1013,9 @@
             nftList.appendChild(nftDiv);
         }
 
-        // Transfer a single NFT
+        // Transfer single NFT
         async function transferNFT(tokenId) {
-            if (!web3 || !contract || !accounts) {
+            if (!web3 || !siycContract || !accounts) {
                 showModal('Please connect your wallet first!');
                 return;
             }
@@ -972,7 +1026,7 @@
             }
             try {
                 showModal('Transferring NFT...');
-                await contract.methods.safeTransferFrom(accounts[0], transferAddress, tokenId).send({ from: accounts[0] });
+                await siycContract.methods.safeTransferFrom(accounts[0], transferAddress, tokenId).send({ from: accounts[0] });
                 showModal('NFT transferred successfully!');
                 fetchOwnedNFTs();
             } catch (error) {
@@ -989,9 +1043,9 @@
             return array;
         }
 
-        // Batch transfer NFTs based on input (address,amount per line)
+        // Batch transfer NFTs using SIYCMultiCall
         async function batchTransferNFTs() {
-            if (!web3 || !contract || !accounts) {
+            if (!web3 || !siycContract || !multiCallContract || !accounts) {
                 showModal('Please connect your wallet first!');
                 return;
             }
@@ -1001,7 +1055,7 @@
             batchButton.disabled = true;
 
             try {
-                // Parse input lines
+                // Parse input
                 const lines = batchInput.split('\n').filter(line => line.trim() !== '');
                 if (lines.length === 0) {
                     showModal('Please provide at least one address and amount.');
@@ -1010,7 +1064,7 @@
                     return;
                 }
 
-                // Validate and collect transfers
+                // Collect transfers
                 const transfers = [];
                 let totalAmount = 0;
                 for (const line of lines) {
@@ -1032,7 +1086,7 @@
                     totalAmount += amount;
                 }
 
-                // Check total amount limit
+                // Validate total amount
                 if (totalAmount > 100) {
                     showModal('Total transfer amount exceeds 100 NFTs.');
                     batchButton.classList.remove('loading');
@@ -1041,7 +1095,7 @@
                 }
 
                 // Fetch owned NFTs
-                const tokenIds = await contract.methods.walletOfOwner(accounts[0]).call();
+                const tokenIds = await siycContract.methods.walletOfOwner(accounts[0]).call();
                 if (tokenIds.length < totalAmount) {
                     showModal(`You only own ${tokenIds.length} NFTs, but requested to transfer ${totalAmount}.`);
                     batchButton.classList.remove('loading');
@@ -1051,17 +1105,27 @@
 
                 // Randomly select NFTs
                 const shuffledTokenIds = shuffleArray([...tokenIds]);
+                const toAddresses = [];
+                const selectedTokenIds = [];
                 let tokenIndex = 0;
-                showModal('Initiating batch transfer...');
 
-                // Execute transfers
+                // Build arrays for batch transfer
                 for (const { address, amount } of transfers) {
                     for (let i = 0; i < amount; i++) {
-                        const tokenId = shuffledTokenIds[tokenIndex++];
-                        showModal(`Transferring NFT #${tokenId} to ${address.slice(0, 6)}...${address.slice(-4)}`);
-                        await contract.methods.safeTransferFrom(accounts[0], address, tokenId).send({ from: accounts[0] });
+                        toAddresses.push(address);
+                        selectedTokenIds.push(shuffledTokenIds[tokenIndex++]);
                     }
                 }
+
+                // Confirm transfer details
+                showModal(`Preparing to transfer ${totalAmount} NFTs in a single transaction...`);
+
+                // Execute batch transfer via SIYCMultiCall
+                await multiCallContract.methods.batchTransfer(
+                    SIYC_CONTRACT_ADDRESS,
+                    toAddresses,
+                    selectedTokenIds
+                ).send({ from: accounts[0] });
 
                 showModal('Batch transfer completed successfully!');
                 fetchOwnedNFTs();
