@@ -100,6 +100,7 @@
             display: flex; 
             gap: 15px; 
             margin: 20px 0; 
+            flex-wrap: wrap; 
         }
         .action-btn { 
             padding: 10px 20px; 
@@ -196,6 +197,7 @@
             padding: 6px 12px; 
             font-size: 12px; 
             width: 100%; 
+            margin: 5px 0; 
         }
         input[type="password"] { 
             padding: 8px; 
@@ -457,6 +459,7 @@
     <canvas id="nftCanvas" width="512" height="512"></canvas>
     <div class="action-buttons">
         <button id="randomizeBtn" class="action-btn" onclick="randomizeNFT()">Randomize</button>
+        <button id="generate100Btn" class="action-btn" onclick="generate100RandomNFTs()">Generate 100 Random NFTs</button>
         <button id="addToListBtn" class="action-btn" onclick="addToMintList()">Add to Mint List</button>
         <button id="downloadBtn" class="action-btn" onclick="downloadNFT()">Download PNG</button>
         <button id="mintBtn" class="action-btn" onclick="startMinting()" disabled>Start Minting</button>
@@ -497,12 +500,13 @@
 
         const canvas = document.getElementById("nftCanvas");
         const ctx = canvas.getContext("2d");
-
         let web3, account, contract;
         const CONTRACT_ADDRESS = "0xB33012feB12D590f4ee9B0D9999e95C30303A209";
         const MINT_PRICE = "10000000000000000000";
         const IMAGE_BASE_URL = "https://id.presalekiller.com/images/";
         const GAS_LIMIT = 10000000;
+        let mintList = [];
+        let editingIndex = -1;
 
         const CONTRACT_ABI = [
             {
@@ -513,24 +517,9 @@
             {
                 "anonymous": false,
                 "inputs": [
-                    {
-                        "indexed": true,
-                        "internalType": "address",
-                        "name": "owner",
-                        "type": "address"
-                    },
-                    {
-                        "indexed": true,
-                        "internalType": "address",
-                        "name": "approved",
-                        "type": "address"
-                    },
-                    {
-                        "indexed": true,
-                        "internalType": "uint256",
-                        "name": "tokenId",
-                        "type": "uint256"
-                    }
+                    {"indexed": true, "internalType": "address", "name": "owner", "type": "address"},
+                    {"indexed": true, "internalType": "address", "name": "approved", "type": "address"},
+                    {"indexed": true, "internalType": "uint256", "name": "tokenId", "type": "uint256"}
                 ],
                 "name": "Approval",
                 "type": "event"
@@ -538,24 +527,9 @@
             {
                 "anonymous": false,
                 "inputs": [
-                    {
-                        "indexed": true,
-                        "internalType": "address",
-                        "name": "owner",
-                        "type": "address"
-                    },
-                    {
-                        "indexed": true,
-                        "internalType": "address",
-                        "name": "operator",
-                        "type": "address"
-                    },
-                    {
-                        "indexed": false,
-                        "internalType": "bool",
-                        "name": "approved",
-                        "type": "bool"
-                    }
+                    {"indexed": true, "internalType": "address", "name": "owner", "type": "address"},
+                    {"indexed": true, "internalType": "address", "name": "operator", "type": "address"},
+                    {"indexed": false, "internalType": "bool", "name": "approved", "type": "bool"}
                 ],
                 "name": "ApprovalForAll",
                 "type": "event"
@@ -563,18 +537,8 @@
             {
                 "anonymous": false,
                 "inputs": [
-                    {
-                        "indexed": true,
-                        "internalType": "address",
-                        "name": "previousOwner",
-                        "type": "address"
-                    },
-                    {
-                        "indexed": true,
-                        "internalType": "address",
-                        "name": "newOwner",
-                        "type": "address"
-                    }
+                    {"indexed": true, "internalType": "address", "name": "previousOwner", "type": "address"},
+                    {"indexed": true, "internalType": "address", "name": "newOwner", "type": "address"}
                 ],
                 "name": "OwnershipTransferred",
                 "type": "event"
@@ -582,59 +546,24 @@
             {
                 "anonymous": false,
                 "inputs": [
-                    {
-                        "indexed": true,
-                        "internalType": "address",
-                        "name": "from",
-                        "type": "address"
-                    },
-                    {
-                        "indexed": true,
-                        "internalType": "address",
-                        "name": "to",
-                        "type": "address"
-                    },
-                    {
-                        "indexed": true,
-                        "internalType": "uint256",
-                        "name": "tokenId",
-                        "type": "uint256"
-                    }
+                    {"indexed": true, "internalType": "address", "name": "from", "type": "address"},
+                    {"indexed": true, "internalType": "address", "name": "to", "type": "address"},
+                    {"indexed": true, "internalType": "uint256", "name": "tokenId", "type": "uint256"}
                 ],
                 "name": "Transfer",
                 "type": "event"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    }
-                ],
+                "inputs": [{"internalType": "address", "name": "", "type": "address"}],
                 "name": "addressMintedBalance",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "to",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "tokenId",
-                        "type": "uint256"
-                    }
+                    {"internalType": "address", "name": "to", "type": "address"},
+                    {"internalType": "uint256", "name": "tokenId", "type": "uint256"}
                 ],
                 "name": "approve",
                 "outputs": [],
@@ -642,105 +571,47 @@
                 "type": "function"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "owner",
-                        "type": "address"
-                    }
-                ],
+                "inputs": [{"internalType": "address", "name": "owner", "type": "address"}],
                 "name": "balanceOf",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [],
                 "name": "cost",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "tokenId",
-                        "type": "uint256"
-                    }
-                ],
+                "inputs": [{"internalType": "uint256", "name": "tokenId", "type": "uint256"}],
                 "name": "getApproved",
-                "outputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    }
-                ],
+                "outputs": [{"internalType": "address", "name": "", "type": "address"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "owner",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "operator",
-                        "type": "address"
-                    }
+                    {"internalType": "address", "name": "owner", "type": "address"},
+                    {"internalType": "address", "name": "operator", "type": "address"}
                 ],
                 "name": "isApprovedForAll",
-                "outputs": [
-                    {
-                        "internalType": "bool",
-                        "name": "",
-                        "type": "bool"
-                    }
-                ],
+                "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [],
                 "name": "maxSupply",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [
-                    {
-                        "internalType": "string",
-                        "name": "uri",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string[]",
-                        "name": "attributes",
-                        "type": "string[]"
-                    }
+                    {"internalType": "string", "name": "uri", "type": "string"},
+                    {"internalType": "string[]", "name": "attributes", "type": "string[]"}
                 ],
                 "name": "mintNFT",
                 "outputs": [],
@@ -748,72 +619,32 @@
                 "type": "function"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    }
-                ],
+                "inputs": [{"internalType": "address", "name": "", "type": "address"}],
                 "name": "mintedCount",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [],
                 "name": "name",
-                "outputs": [
-                    {
-                        "internalType": "string",
-                        "name": "",
-                        "type": "string"
-                    }
-                ],
+                "outputs": [{"internalType": "string", "name": "", "type": "string"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [],
                 "name": "owner",
-                "outputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    }
-                ],
+                "outputs": [{"internalType": "address", "name": "", "type": "address"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "to",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "tokenId",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "uri",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "bytes32",
-                        "name": "attributes",
-                        "type": "bytes32"
-                    }
+                    {"internalType": "address", "name": "to", "type": "address"},
+                    {"internalType": "uint256", "name": "tokenId", "type": "uint256"},
+                    {"internalType": "string", "name": "uri", "type": "string"},
+                    {"internalType": "bytes32", "name": "attributes", "type": "bytes32"}
                 ],
                 "name": "ownerMintWithData",
                 "outputs": [],
@@ -821,21 +652,9 @@
                 "type": "function"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "tokenId",
-                        "type": "uint256"
-                    }
-                ],
+                "inputs": [{"internalType": "uint256", "name": "tokenId", "type": "uint256"}],
                 "name": "ownerOf",
-                "outputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    }
-                ],
+                "outputs": [{"internalType": "address", "name": "", "type": "address"}],
                 "stateMutability": "view",
                 "type": "function"
             },
@@ -848,21 +667,9 @@
             },
             {
                 "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "from",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "to",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "tokenId",
-                        "type": "uint256"
-                    }
+                    {"internalType": "address", "name": "from", "type": "address"},
+                    {"internalType": "address", "name": "to", "type": "address"},
+                    {"internalType": "uint256", "name": "tokenId", "type": "uint256"}
                 ],
                 "name": "safeTransferFrom",
                 "outputs": [],
@@ -871,26 +678,10 @@
             },
             {
                 "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "from",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "to",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "tokenId",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "bytes",
-                        "name": "_data",
-                        "type": "bytes"
-                    }
+                    {"internalType": "address", "name": "from", "type": "address"},
+                    {"internalType": "address", "name": "to", "type": "address"},
+                    {"internalType": "uint256", "name": "tokenId", "type": "uint256"},
+                    {"internalType": "bytes", "name": "_data", "type": "bytes"}
                 ],
                 "name": "safeTransferFrom",
                 "outputs": [],
@@ -899,16 +690,8 @@
             },
             {
                 "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "operator",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "bool",
-                        "name": "_approved",
-                        "type": "bool"
-                    }
+                    {"internalType": "address", "name": "operator", "type": "address"},
+                    {"internalType": "bool", "name": "_approved", "type": "bool"}
                 ],
                 "name": "setApprovalForAll",
                 "outputs": [],
@@ -916,142 +699,62 @@
                 "type": "function"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "_newCost",
-                        "type": "uint256"
-                    }
-                ],
+                "inputs": [{"internalType": "uint256", "name": "_newCost", "type": "uint256"}],
                 "name": "setCost",
                 "outputs": [],
                 "stateMutability": "nonpayable",
                 "type": "function"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "bytes4",
-                        "name": "interfaceId",
-                        "type": "bytes4"
-                    }
-                ],
+                "inputs": [{"internalType": "bytes4", "name": "interfaceId", "type": "bytes4"}],
                 "name": "supportsInterface",
-                "outputs": [
-                    {
-                        "internalType": "bool",
-                        "name": "",
-                        "type": "bool"
-                    }
-                ],
+                "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [],
                 "name": "symbol",
-                "outputs": [
-                    {
-                        "internalType": "string",
-                        "name": "",
-                        "type": "string"
-                    }
-                ],
+                "outputs": [{"internalType": "string", "name": "", "type": "string"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "index",
-                        "type": "uint256"
-                    }
-                ],
+                "inputs": [{"internalType": "uint256", "name": "index", "type": "uint256"}],
                 "name": "tokenByIndex",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "owner",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "index",
-                        "type": "uint256"
-                    }
+                    {"internalType": "address", "name": "owner", "type": "address"},
+                    {"internalType": "uint256", "name": "index", "type": "uint256"}
                 ],
                 "name": "tokenOfOwnerByIndex",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "tokenId",
-                        "type": "uint256"
-                    }
-                ],
+                "inputs": [{"internalType": "uint256", "name": "tokenId", "type": "uint256"}],
                 "name": "tokenURI",
-                "outputs": [
-                    {
-                        "internalType": "string",
-                        "name": "",
-                        "type": "string"
-                    }
-                ],
+                "outputs": [{"internalType": "string", "name": "", "type": "string"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [],
                 "name": "totalSupply",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
+                "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
                 "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "from",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "to",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "tokenId",
-                        "type": "uint256"
-                    }
+                    {"internalType": "address", "name": "from", "type": "address"},
+                    {"internalType": "address", "name": "to", "type": "address"},
+                    {"internalType": "uint256", "name": "tokenId", "type": "uint256"}
                 ],
                 "name": "transferFrom",
                 "outputs": [],
@@ -1059,13 +762,7 @@
                 "type": "function"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "newOwner",
-                        "type": "address"
-                    }
-                ],
+                "inputs": [{"internalType": "address", "name": "newOwner", "type": "address"}],
                 "name": "transferOwnership",
                 "outputs": [],
                 "stateMutability": "nonpayable",
@@ -1073,16 +770,8 @@
             },
             {
                 "inputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "tokenId",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "newTokenURI",
-                        "type": "string"
-                    }
+                    {"internalType": "uint256", "name": "tokenId", "type": "uint256"},
+                    {"internalType": "string", "name": "newTokenURI", "type": "string"}
                 ],
                 "name": "updateTokenMetadata",
                 "outputs": [],
@@ -1090,40 +779,16 @@
                 "type": "function"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "bytes32",
-                        "name": "",
-                        "type": "bytes32"
-                    }
-                ],
+                "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
                 "name": "usedAttributeCombinations",
-                "outputs": [
-                    {
-                        "internalType": "bool",
-                        "name": "",
-                        "type": "bool"
-                    }
-                ],
+                "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
                 "stateMutability": "view",
                 "type": "function"
             },
             {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "_owner",
-                        "type": "address"
-                    }
-                ],
+                "inputs": [{"internalType": "address", "name": "_owner", "type": "address"}],
                 "name": "walletOfOwner",
-                "outputs": [
-                    {
-                        "internalType": "uint256[]",
-                        "name": "",
-                        "type": "uint256[]"
-                    }
-                ],
+                "outputs": [{"internalType": "uint256[]", "name": "", "type": "uint256[]"}],
                 "stateMutability": "view",
                 "type": "function"
             },
@@ -1135,20 +800,6 @@
                 "type": "function"
             }
         ];
-
-        const shibariumMainnet = {
-            chainId: '0x6d',
-            chainName: 'Shibarium',
-            nativeCurrency: {
-                name: 'BONE',
-                symbol: 'BONE',
-                decimals: 18
-            },
-            rpcUrls: ['https://www.shibrpc.com'],
-            blockExplorerUrls: ['https://shibariumscan.io']
-        };
-
-        let mintList = [];
 
         function showModal(message) {
             document.getElementById('modalMessage').innerHTML = message;
@@ -1169,15 +820,19 @@
                 return;
             }
             try {
-                web3 = new Web3(shibariumMainnet.rpcUrls[0]);
+                web3 = new Web3('https://www.shibrpc.com');
                 const accountObj = web3.eth.accounts.privateKeyToAccount(privateKey.startsWith('0x') ? privateKey : '0x' + privateKey);
                 web3.eth.accounts.wallet.add(accountObj);
                 account = accountObj.address;
                 contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-                showModal('Private key loaded successfully!');
+                const balance = await web3.eth.getBalance(account);
+                if (web3.utils.toBN(balance).lt(web3.utils.toBN(MINT_PRICE))) {
+                    throw new Error('Insufficient BONE balance. Need at least 10 BONE plus gas.');
+                }
+                showModal(`Private key loaded. Address: ${account.slice(0, 6)}...${account.slice(-4)}`);
                 document.getElementById('mintBtn').disabled = mintList.length === 0;
             } catch (error) {
-                showModal('Invalid private key or connection failed: ' + error.message);
+                showModal('Error: ' + error.message);
             } finally {
                 connectButton.classList.remove('loading');
             }
@@ -1208,21 +863,17 @@
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     resolve();
                 };
-                img.onerror = () => {
-                    showModal(`Failed to load image: ${img.src}`);
-                    reject(new Error(`Failed to load image: ${img.src}`));
-                };
+                img.onerror = () => reject(new Error(`Failed to load image: ${img.src}`));
             });
         }
 
         async function updateNFT() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for (const layer of layerOrder) {
-                const layerValue = layers[layer][currentIndices[layer]];
                 try {
-                    await drawLayer(layer, layerValue);
+                    await drawLayer(layer, layers[layer][currentIndices[layer]]);
                 } catch (error) {
-                    console.error(error.message);
+                    showModal(error.message);
                 }
             }
         }
@@ -1242,20 +893,47 @@
         }
 
         function randomizeNFT() {
+            const indices = {};
             for (const layer of layerOrder) {
-                currentIndices[layer] = Math.floor(Math.random() * layers[layer].length);
+                indices[layer] = Math.floor(Math.random() * layers[layer].length);
             }
-            if (layers.Earring[currentIndices.Earring] !== "None" && layers.Hat[currentIndices.Hat] !== "None") {
-                if (Math.random() < 0.5) {
-                    currentIndices.Hat = 0;
-                } else {
-                    currentIndices.Earring = 0;
-                }
+            if (layers.Earring[indices.Earring] !== "None" && layers.Hat[indices.Hat] !== "None") {
+                Math.random() < 0.5 ? indices.Hat = 0 : indices.Earring = 0;
             }
+            return indices;
+        }
+
+        async function generateSingleRandomNFT() {
+            const indices = randomizeNFT();
+            Object.assign(currentIndices, indices);
             for (const layer of layerOrder) {
                 updateLayerValue(layer);
             }
-            updateNFT();
+            await updateNFT();
+            return { indices: { ...currentIndices }, imageData: canvas.toDataURL("image/png") };
+        }
+
+        async function generate100RandomNFTs() {
+            const generateButton = document.getElementById('generate100Btn');
+            generateButton.classList.add('loading');
+            try {
+                showModal('Generating 100 random NFTs...');
+                mintList = [];
+                for (let i = 0; i < 100; i++) {
+                    const nft = await generateSingleRandomNFT();
+                    mintList.push(nft);
+                    if (i % 10 === 0) {
+                        showModal(`Generated ${i} of 100 NFTs...`);
+                    }
+                }
+                await displayMintList();
+                document.getElementById('mintBtn').disabled = !account || mintList.length === 0;
+                showModal('100 random NFTs generated successfully!');
+            } catch (error) {
+                showModal('Error generating NFTs: ' + error.message);
+            } finally {
+                generateButton.classList.remove('loading');
+            }
         }
 
         function downloadNFT() {
@@ -1268,10 +946,28 @@
         async function addToMintList() {
             const indices = { ...currentIndices };
             const imageData = canvas.toDataURL("image/png");
-            mintList.push({ indices, imageData });
+            if (editingIndex >= 0) {
+                mintList[editingIndex] = { indices, imageData };
+                editingIndex = -1;
+                document.getElementById('addToListBtn').textContent = 'Add to Mint List';
+                showModal('NFT updated in mint list!');
+            } else {
+                mintList.push({ indices, imageData });
+                showModal('NFT added to mint list!');
+            }
             document.getElementById('mintBtn').disabled = !account || mintList.length === 0;
             await displayMintList();
-            showModal('NFT configuration added to mint list!');
+        }
+
+        async function editNFT(index) {
+            editingIndex = index;
+            Object.assign(currentIndices, mintList[index].indices);
+            for (const layer of layerOrder) {
+                updateLayerValue(layer);
+            }
+            await updateNFT();
+            document.getElementById('addToListBtn').textContent = 'Update NFT';
+            showModal(`Editing NFT ${index + 1}. Make changes and click "Update NFT".`);
         }
 
         async function displayMintList() {
@@ -1285,6 +981,7 @@
                     <img src="${item.imageData}" alt="NFT ${index + 1}">
                     <p>NFT ${index + 1}</p>
                     <p style="font-size: 10px;">${attributes}</p>
+                    <button class="action-btn" onclick="editNFT(${index})">Edit</button>
                     <button class="action-btn" onclick="removeFromMintList(${index})">Remove</button>
                 `;
                 mintListDiv.appendChild(mintCard);
@@ -1294,36 +991,35 @@
         function removeFromMintList(index) {
             mintList.splice(index, 1);
             document.getElementById('mintBtn').disabled = !account || mintList.length === 0;
+            if (editingIndex === index) {
+                editingIndex = -1;
+                document.getElementById('addToListBtn').textContent = 'Add to Mint List';
+            } else if (editingIndex > index) {
+                editingIndex--;
+            }
             displayMintList();
             showModal(`NFT ${index + 1} removed from mint list.`);
         }
 
         async function preloadImages(indices) {
             const imagePromises = [];
-            const failedImages = [];
             for (const layer of layerOrder) {
                 const layerValue = layers[layer][indices[layer]];
                 if (layerValue !== "None") {
-                    const imgSrc = `${IMAGE_BASE_URL}${layer}/${layerValue}.png`;
-                    imagePromises.push(
-                        new Promise((resolve, reject) => {
-                            const img = new Image();
-                            img.crossOrigin = "Anonymous";
-                            img.src = imgSrc;
-                            img.onload = () => resolve(imgSrc);
-                            img.onerror = () => {
-                                failedImages.push(imgSrc);
-                                reject(new Error(`Failed to load ${imgSrc}`));
-                            };
-                        })
-                    );
+                    imagePromises.push(new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.crossOrigin = "Anonymous";
+                        img.src = `${IMAGE_BASE_URL}${layer}/${layerValue}.png`;
+                        img.onload = () => resolve();
+                        img.onerror = () => reject(new Error(`Failed to load ${img.src}`));
+                    }));
                 }
             }
             try {
                 await Promise.all(imagePromises);
                 return true;
             } catch (error) {
-                showModal(`Failed to load images: ${failedImages.join(', ')}`);
+                showModal(error.message);
                 return false;
             }
         }
@@ -1331,11 +1027,10 @@
         async function drawNFT(indices) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for (const layer of layerOrder) {
-                const layerValue = layers[layer][indices[layer]];
                 try {
-                    await drawLayer(layer, layerValue);
+                    await drawLayer(layer, layers[layer][indices[layer]]);
                 } catch (error) {
-                    console.error(error.message);
+                    showModal(error.message);
                 }
             }
         }
@@ -1354,22 +1049,21 @@
             mintButton.disabled = true;
             try {
                 for (let i = 0; i < mintList.length; i++) {
-                    showModal(`Minting NFT ${i + 1} of ${mintList.length}... Checking attribute uniqueness...`);
                     const indices = mintList[i].indices;
                     const attributes = layerOrder.map(layer => layers[layer][indices[layer]]);
+                    showModal(`Minting NFT ${i + 1}/${mintList.length}: Checking uniqueness...`);
                     const attrHash = web3.utils.keccak256(web3.eth.abi.encodeParameter('string[]', attributes));
                     const isUsed = await contract.methods.usedAttributeCombinations(attrHash).call();
                     if (isUsed) {
-                        showModal(`NFT ${i + 1}: This attribute combination has already been minted. Skipping to next.`);
+                        showModal(`NFT ${i + 1}: Attribute combination already minted. Skipping.`);
                         continue;
                     }
-                    showModal(`NFT ${i + 1}: Loading images... Please wait.`);
-                    const imagesLoaded = await preloadImages(indices);
-                    if (!imagesLoaded) {
-                        showModal(`NFT ${i + 1}: Image loading failed. Skipping to next.`);
+                    showModal(`NFT ${i + 1}: Loading images...`);
+                    if (!await preloadImages(indices)) {
+                        showModal(`NFT ${i + 1}: Image loading failed. Skipping.`);
                         continue;
                     }
-                    showModal(`NFT ${i + 1}: All images loaded successfully! Generating image...`);
+                    showModal(`NFT ${i + 1}: Generating image...`);
                     await drawNFT(indices);
                     const imageData = canvas.toDataURL("image/png").split(',')[1];
                     const totalSupply = await contract.methods.totalSupply().call();
@@ -1383,23 +1077,34 @@
                         }))
                     };
                     const tokenURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
-                    showModal(`NFT ${i + 1}: Minting...`);
+                    showModal(`NFT ${i + 1}: Estimating gas...`);
+                    let gas;
+                    try {
+                        gas = await contract.methods.mintNFT(tokenURI, attributes).estimateGas({
+                            from: account,
+                            value: MINT_PRICE
+                        });
+                        gas = Math.min(Math.floor(gas * 1.2), GAS_LIMIT);
+                    } catch (error) {
+                        showModal(`NFT ${i + 1}: Gas estimation failed. Using default limit.`);
+                        gas = GAS_LIMIT;
+                    }
+                    showModal(`NFT ${i + 1}: Minting (Gas: ${gas})...`);
                     await contract.methods.mintNFT(tokenURI, attributes).send({
                         from: account,
                         value: MINT_PRICE,
-                        gas: GAS_LIMIT
+                        gas: gas
                     });
                     showModal(`NFT ${i + 1} minted successfully!`);
                     mintList.splice(i, 1);
                     i--;
                     await displayMintList();
-                    document.getElementById('mintBtn').disabled = !account || mintList.length === 0;
                 }
                 if (mintList.length === 0) {
                     showModal('All NFTs minted successfully!');
                 }
             } catch (error) {
-                showModal('Minting failed: ' + error.message);
+                showModal('Minting error: ' + error.message);
             } finally {
                 mintButton.classList.remove('loading');
                 mintButton.disabled = !account || mintList.length === 0;
